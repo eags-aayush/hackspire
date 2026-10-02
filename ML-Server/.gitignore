@@ -1,0 +1,99 @@
+# ==============================================================================
+# SIH-2026: ML-Server .gitignore
+# PyTorch Deep Learning Inference, Training, Data & Evaluation Microservice
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Virtual Environments & Packaging
+# ------------------------------------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ------------------------------------------------------------------------------
+# 2. Python Bytecode & Cache Directories
+# ------------------------------------------------------------------------------
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ------------------------------------------------------------------------------
+# 3. Linting, Testing & Coverage
+# ------------------------------------------------------------------------------
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.hypothesis/
+
+# ------------------------------------------------------------------------------
+# 4. Model Weights, Checkpoints & Serialization Artifacts
+# Note: Heavy models (*.pt, *.onnx, *.npz) are kept out of git.
+# Keep normalization statistics and directory structure via .gitkeep
+# ------------------------------------------------------------------------------
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.bin
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.joblib
+*.npy
+*.npz
+
+# Explicitly track essential model metadata & structure
+!inference-service/model_registry/.gitkeep
+!inference-service/model_registry/normalization_stats.json
+
+# ------------------------------------------------------------------------------
+# 5. Runtime Logs & Predictions Log Store
+# ------------------------------------------------------------------------------
+*.log
+*.log.*
+prediction_log.jsonl
+inference-service/prediction_log.jsonl
+*.jsonl
+
+# ------------------------------------------------------------------------------
+# 6. Data Exports, Test Dumps & Temporary Files
+# ------------------------------------------------------------------------------
+data/test_export.csv
+data/*_export.csv
+data/exports/
+data/cache/
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Scratch test scripts
+scratch*.py
+scratch/
+test_scratch*.py
+
+# ------------------------------------------------------------------------------
+# 7. Jupyter Notebook Checkpoints
+# ------------------------------------------------------------------------------
+.ipynb_checkpoints/
+*-checkpoint.ipynb
+
+# ------------------------------------------------------------------------------
+# 8. OS & IDE Specific
+# ------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

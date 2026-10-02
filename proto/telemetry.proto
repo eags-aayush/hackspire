@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package telemetry;
+
+// Canonical Sensor Reading shape adhering strictly to Rules.md §4
+message SensorReading {
+  string nodeId = 1;
+  string zoneId = 2;
+  string sensorType = 3;
+  double value = 4;
+  string unit = 5;
+  string timestamp = 6;
+  uint32 sequenceNumber = 7;
+  string receivedAt = 8;
+}
+
+// Coalesced readings batch per zone (sent periodically over WebSocket)
+message SensorReadingBatch {
+  string zoneId = 1;
+  repeated SensorReading readings = 2;
+}
+
+// Canonical Node Status shape
+message NodeStatusRecord {
+  string nodeId = 1;
+  string zoneId = 2;
+  string status = 3;
+  string lastSeenAt = 4;
+  uint32 lastSequenceNumber = 5;
+  uint32 gapCount = 6;
+}
+
+// Coalesced node statuses batch per zone
+message NodeStatusBatch {
+  string zoneId = 1;
+  repeated NodeStatusRecord statuses = 2;
+}
+
+// Full zone snapshot sent upon client joining a zone
+message ZoneSnapshot {
+  string zoneId = 1;
+  repeated SensorReading readings = 2;
+  repeated NodeStatusRecord statuses = 3;
+}

@@ -1,0 +1,8 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/ML-Server/.venv/Scripts/python.exe",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/ML-Server",
+    "${workspaceFolder}/ML-Server/models",
+    "${workspaceFolder}/ML-Server/inference-service"
+  ]
+}
