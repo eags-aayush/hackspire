@@ -4,11 +4,9 @@ import React, { useState } from 'react';
 import { useRealtime } from '@/hooks/useRealtime';
 import { useZoneFilter } from '@/hooks/useZoneFilter';
 import { LatencyTracker } from '@/components/monitoring/LatencyTracker';
-import { GatewayStatusCard } from '@/components/monitoring/GatewayStatusCard';
 import { MonitoringControls } from '@/components/monitoring/MonitoringControls';
 import { GlobalZoneAverages } from '@/components/monitoring/GlobalZoneAverages';
 import { ZoneContainer } from '@/components/monitoring/ZoneContainer';
-import { MlFleetStatusBar } from '@/components/monitoring/MlFleetStatusBar';
 import { EmptyState } from '@/components/common/EmptyState';
 import { HardwareOnboardingWizard } from '@/components/common/HardwareOnboardingWizard';
 import { Activity, Cpu, FileText } from 'lucide-react';
@@ -106,15 +104,6 @@ export default function MonitoringPage() {
           </div>
         </div>
       </div>
-
-      {/* Realtime ESP32 LoRa Gateway, EMQX MQTT & WebSocket Ingestion Status Card */}
-      <GatewayStatusCard variant="full" />
-
-      {/* Real-Time ML Early Warning & Fleet Model Intelligence Bar */}
-      <MlFleetStatusBar
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-      />
 
       {/* Latency Tracker Metric Component */}
       <LatencyTracker />

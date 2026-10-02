@@ -51,69 +51,69 @@ export default function DigitalTwinPage() {
   const [timeTravelOffsetHours, setTimeTravelOffsetHours] = useState<number>(0);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 font-serif">
       {/* Page Header with System Status Badges */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-[#e5e5e5] dark:border-[#14213d]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b-2 border-[#003366]/20 dark:border-[#c9a227]/30">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#14213d]/10 dark:bg-[#14213d] border border-[#14213d]/30 dark:border-[#fca311]/40 text-[#14213d] dark:text-[#fca311]">
-              <Globe2 className="w-6 h-6" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-[#003366] border-2 border-[#c9a227] flex items-center justify-center text-white text-xl font-bold shadow-md">
+              ★
             </div>
             <div>
-              <h1 className="text-xl lg:text-2xl font-black text-[#000000] dark:text-white tracking-wide">
-                Digital Twin GIS Model
+              <h1 className="text-xl lg:text-2xl font-bold text-[#003366] dark:text-white tracking-wide">
+                India Coal Mining GIS Atlas & Digital Twin
               </h1>
-              <p className="text-xs text-[#5c677d] dark:text-[#94a3b8] mt-0.5 font-medium">
-                Geospatial Leaflet & OpenStreetMap twin synchronized with real-time multi-modal geotechnical IoT telemetry
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                Department of Mining Safety &mdash; High-Resolution Satellite GIS & Subsurface Strata Telemetry Mesh
               </p>
             </div>
           </div>
         </div>
 
-        {/* Action Controls & Simulator Status */}
-        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-          {/* Simulate Anomaly Button */}
-          <button
-            onClick={() => triggerDemoMlEvent('NODE_03', 'subsidence_risk')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 text-xs font-semibold transition-all hover:scale-105 active:scale-95 shadow-sm"
-          >
-            <AlertTriangle className="w-3.5 h-3.5 text-red-500 animate-pulse" />
-            <span>Simulate N3 Subsidence Event</span>
-          </button>
-
-          {/* Simulator Stream Toggle */}
-          <button
-            onClick={toggleSimulation}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all hover:scale-105 active:scale-95 shadow-sm ${
-              isSimulationActive
-                ? 'bg-[#14213d] text-white dark:bg-[#fca311] dark:text-[#000000] border-[#14213d] dark:border-[#fca311]'
-                : 'bg-[#f4f5f7] hover:bg-[#e5e5e5] dark:bg-[#14213d]/60 dark:hover:bg-[#14213d] text-[#14213d] dark:text-[#e5e5e5] border-[#e5e5e5] dark:border-[#14213d]'
-            }`}
-          >
-            {isSimulationActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            <span>{isSimulationActive ? 'Live Simulator Running' : 'Start Telemetry Stream'}</span>
-          </button>
-
-          {/* Status Metric Pill */}
-          <div className="flex items-center gap-2 text-xs font-mono text-[#14213d] dark:text-[#e5e5e5] bg-[#f4f5f7] dark:bg-[#14213d]/70 px-3.5 py-2 rounded-xl border border-[#e5e5e5] dark:border-[#14213d] shadow-sm">
-            <span className="text-[#5c677d] dark:text-[#94a3b8]">Twin Health:</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              100% Synced
+        {/* Live Statutory Status Pill */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-2 text-xs text-[#003366] dark:text-white bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-[#c9c9c9] dark:border-slate-700 shadow-sm">
+            <span className="text-slate-500 dark:text-slate-400">DGMS Portal Link:</span>
+            <span className="text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
+              100% NOMINAL
             </span>
           </div>
         </div>
       </div>
 
+      {/* National GIS Atlas Quick Metric Banner Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+        <div className="p-3.5 rounded-xl bg-white dark:bg-[#1e293b]/70 border border-[#c9c9c9] dark:border-[#334155] border-l-4 border-l-[#003366] dark:border-l-[#c9a227] shadow-sm">
+          <div className="text-2xl font-bold text-[#003366] dark:text-[#c9a227] leading-none">64+</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1">National Registered Mines</div>
+        </div>
+
+        <div className="p-3.5 rounded-xl bg-white dark:bg-[#1e293b]/70 border border-[#c9c9c9] dark:border-[#334155] border-l-4 border-l-[#003366] dark:border-l-[#c9a227] shadow-sm">
+          <div className="text-2xl font-bold text-[#003366] dark:text-[#c9a227] leading-none">8 States</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1">Major Mining States & UTs</div>
+        </div>
+
+        <div className="p-3.5 rounded-xl bg-white dark:bg-[#1e293b]/70 border border-[#c9c9c9] dark:border-[#334155] border-l-4 border-l-[#003366] dark:border-l-[#c9a227] shadow-sm">
+          <div className="text-2xl font-bold text-[#003366] dark:text-[#c9a227] leading-none">16 Basins</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1">Gondwana & Lignite Coalfields</div>
+        </div>
+
+        <div className="p-3.5 rounded-xl bg-white dark:bg-[#1e293b]/70 border border-[#c9c9c9] dark:border-[#334155] border-l-4 border-l-[#003366] dark:border-l-[#c9a227] shadow-sm">
+          <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 leading-none">6 Beacons</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1">Jharia LoRa Mesh Nodes (100%)</div>
+        </div>
+      </div>
+
       {/* 1. Leaflet & OpenStreetMap Interactive GIS Digital Twin */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">
+        <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#003366] dark:text-[#c9a227] px-1">
           <span className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-[#fca311]" />
-            Spatial Mine Surface & Telemetry Mesh Map
+            <Layers className="w-3.5 h-3.5 text-[#c9a227]" />
+            National Satellite GIS & Spatial Mine Surface Telemetry Map
           </span>
-          <span className="text-[11px] font-mono text-[#fca311]">
-            OpenStreetMap &bull; Leaflet.js &bull; EPSG:4326
+          <span className="text-[11px] font-mono text-slate-500">
+            Esri World Imagery &bull; OpenStreetMap &bull; Leaflet.js &bull; EPSG:4326
           </span>
         </div>
 

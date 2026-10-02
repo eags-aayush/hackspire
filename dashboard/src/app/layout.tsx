@@ -75,9 +75,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MINE MESH™ | Autonomous Mine Subsidence Telemetry & Early Warning System",
+  title: "MineGuard IoT | National Mine Safety Monitoring Portal",
   description:
-    "MINE MESH™ (Mine Infrastructure Network & Early Warning Mesh) - Mission-critical IoT geotechnical sensor telemetry mesh monitoring, real-time strata analytics, sequence gap auditing, and subsidence risk forecasting for underground mining operations.",
+    "MineGuard IoT - Department of Mining Safety, Smart Safety Bubble & Geotechnical Early Warning Monitoring System v4.0",
 };
 
 export default function RootLayout({
