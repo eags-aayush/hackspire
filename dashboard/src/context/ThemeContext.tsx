@@ -8,6 +8,7 @@ interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
+  mounted: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -31,14 +32,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-      if (stored === 'light' || stored === 'dark') return stored;
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return 'dark';
-  });
+  // Consistent initial state across server and client to avoid SSR hydration mismatch
+  const [theme, setThemeState] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -46,10 +41,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
     const isDarkInDOM = root.classList.contains('dark');
     const currentDomTheme: Theme = isDarkInDOM ? 'dark' : 'light';
-    if (currentDomTheme !== theme) {
-      setThemeState(currentDomTheme);
-    }
-    applyThemeToDOM(currentDomTheme);
+    setThemeState(currentDomTheme);
     setMounted(true);
   }, []);
 
@@ -97,7 +89,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme, mounted }}>
       <div className={mounted ? 'contents' : 'contents theme-hydrating'}>
         {children}
       </div>

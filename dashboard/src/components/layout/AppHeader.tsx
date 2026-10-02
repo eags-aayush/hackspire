@@ -37,7 +37,7 @@ export function AppHeader() {
     toggleVoiceAlerts,
     isSpeaking,
   } = useRealtime();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, mounted } = useTheme();
   const { toggleMobileOpen } = useSidebar();
   const [timeString, setTimeString] = useState<string>('');
   const [purgedRecently, setPurgedRecently] = useState(false);
@@ -239,23 +239,16 @@ export function AppHeader() {
         <button
           onClick={toggleTheme}
           aria-label="Toggle Theme"
+          suppressHydrationWarning
           className="relative p-1.5 sm:p-2 rounded-xl bg-[#f4f5f7] hover:bg-[#e5e5e5] dark:bg-[#14213d]/80 dark:hover:bg-[#14213d] text-[#14213d] dark:text-[#fca311] border border-[#e5e5e5] dark:border-[#fca311]/40 transition-all duration-300 hover:scale-105 active:scale-95 shadow-sm shrink-0 cursor-pointer"
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Theme`}
+          title={mounted ? `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Theme` : 'Switch Theme'}
         >
           <div className="relative w-3.5 h-3.5 sm:w-4 sm:h-4 overflow-hidden">
             <Sun
-              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 absolute inset-0 transition-all duration-500 transform ${
-                theme === 'dark'
-                  ? 'opacity-100 rotate-0 scale-100 text-[#fca311]'
-                  : 'opacity-0 -rotate-90 scale-0 text-amber-500'
-              }`}
+              className="w-3.5 h-3.5 sm:w-4 sm:h-4 absolute inset-0 transition-all duration-500 transform text-[#fca311] opacity-0 -rotate-90 scale-0 dark:opacity-100 dark:rotate-0 dark:scale-100"
             />
             <Moon
-              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 absolute inset-0 transition-all duration-500 transform ${
-                theme === 'light'
-                  ? 'opacity-100 rotate-0 scale-100 text-[#14213d]'
-                  : 'opacity-0 rotate-90 scale-0 text-[#14213d]'
-              }`}
+              className="w-3.5 h-3.5 sm:w-4 sm:h-4 absolute inset-0 transition-all duration-500 transform text-[#14213d] dark:text-[#fca311] opacity-100 rotate-0 scale-100 dark:opacity-0 dark:rotate-90 dark:scale-0"
             />
           </div>
         </button>

@@ -1282,9 +1282,16 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
     function handleGatewayStatus(status: Partial<GatewayStatus>) {
       if (!status) return;
+      const elapsed = status.lastLoraPacketAt
+        ? Date.now() - new Date(status.lastLoraPacketAt).getTime()
+        : null;
+      const isStale = elapsed !== null && elapsed > 25000;
+
       setGatewayStatus(prev => ({
         ...prev,
         ...status,
+        loraGatewayConnected: isStale ? false : Boolean(status.loraGatewayConnected ?? prev.loraGatewayConnected),
+        status: isStale ? 'offline' : (status.status ?? prev.status),
       }));
     }
 

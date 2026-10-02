@@ -111,11 +111,12 @@ export class IngestionService implements OnModuleInit, OnModuleDestroy {
       elapsed !== null &&
       elapsed < 30_000;
 
-    // A gateway is connected if Mosquitto reports connected clients > 1 (e.g. ESP32 connected to broker)
-    // OR if recent LoRa packets were received
-    const isConnected =
-      (this.isGatewayClientConnected || isPacketRecent) &&
-      !this.isGatewayExplicitlyOffline;
+    // If packets have timed out (>30s without packet), clear connected state
+    if (elapsed !== null && elapsed >= 30_000) {
+      this.isGatewayClientConnected = false;
+    }
+
+    const isConnected = isPacketRecent && !this.isGatewayExplicitlyOffline;
 
     let status: 'online' | 'offline' | 'standby' = 'standby';
     if (isConnected) {
