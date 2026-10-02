@@ -71,7 +71,7 @@ export function HeroSection() {
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 dark:bg-[#14213d] border border-[#e5e5e5] dark:border-[#fca311]/40 text-xs text-[#14213d] dark:text-[#e5e5e5] shadow-md shadow-black/5 dark:shadow-black/40 backdrop-blur-md"
           >
             <span className="w-2 h-2 rounded-full bg-[#fca311] animate-ping" />
-            <span className="font-extrabold text-[#14213d] dark:text-[#fca311]">SIH-2026</span>
+            <span className="font-extrabold text-[#14213d] dark:text-[#fca311]">Hackspire-2026</span>
             <span className="text-[#5c677d] dark:text-[#94a3b8]">•</span>
             <span className="font-medium font-roboto">Early Warning &amp; Telemetry Operations</span>
           </div>

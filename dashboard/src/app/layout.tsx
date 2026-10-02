@@ -101,7 +101,7 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var stored = localStorage.getItem('sih_theme_preference');
+                  var stored = localStorage.getItem('Hackspire_theme_preference');
                   var theme = stored === 'light' ? 'light' : 'dark';
                   var root = document.documentElement;
                   if (theme === 'dark') {

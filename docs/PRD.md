@@ -1,7 +1,7 @@
 # PRD — Mine Subsidence Monitoring: Data Pipeline, Backend & Dashboard
 
 ## 1. Context
-Parent project: AI-Enabled Low-Cost Real-Time Mine Subsidence Monitoring, Prediction & Early Warning System (SIH-2026). Full system = surface mesh sensor nodes → gateway ESP32 → server → dashboard/digital twin → alerts, plus a separate miner safety-band network.
+Parent project: AI-Enabled Low-Cost Real-Time Mine Subsidence Monitoring, Prediction & Early Warning System (Hackspire-2026). Full system = surface mesh sensor nodes → gateway ESP32 → server → dashboard/digital twin → alerts, plus a separate miner safety-band network.
 
 This PRD covers **only the software owner's scope**: Data Transport Pipeline, Backend, and the real-time Dashboard. Hardware is not yet available, so this phase is built and validated entirely against a **dummy sensor data simulator** that stands in for the real gateway ESP32.
 
@@ -24,7 +24,7 @@ If this foundation isn't solid, everything built on top later (AI/ML anomaly det
 
 ## 4. Users
 - **Mine operator / dashboard viewer** — needs live per-zone, per-node sensor state and node health at a glance
-- **SIH judges (demo audience)** — need to see the system visibly reacting in real time to simulated events (including simulated node failure / packet loss)
+- **Hackspire judges (demo audience)** — need to see the system visibly reacting in real time to simulated events (including simulated node failure / packet loss)
 - **Future self / teammates** — need a backend that's honest about what's implemented vs. stubbed for later (AI/ML, alerts, GIS)
 
 ## 5. Functional requirements

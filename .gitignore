@@ -1,5 +1,5 @@
 # ==============================================================================
-# SIH-2026: Mine Subsidence Monitoring, Prediction & Early Warning System
+# Hackspire-2026: Mine Subsidence Monitoring, Prediction & Early Warning System
 # Root .gitignore for Monorepo (NestJS Backend, Next.js Dashboard, ML-Server)
 # ==============================================================================
 

@@ -199,7 +199,7 @@ export function AppSidebar() {
 
         {/* Drawer Footer */}
         <div className="p-3 border-t border-[#e5e5e5] dark:border-[#14213d] text-[10px] font-mono text-[#5c677d] dark:text-[#94a3b8] flex items-center justify-between">
-          <span>SIH-2026 Coal Mine</span>
+          <span>Hackspire-2026 Coal Mine</span>
           <span className="text-[#fca311] font-bold">v0.1.0</span>
         </div>
       </div>
@@ -245,7 +245,7 @@ export function AppSidebar() {
         <div className="p-2 border-t border-[#e5e5e5] dark:border-[#14213d]/80 flex items-center justify-between min-w-0">
           {!collapsed && (
             <span className="text-[10px] text-[#5c677d] dark:text-[#94a3b8] px-2 font-mono flex items-center gap-1 truncate">
-              <Terminal className="w-3 h-3 text-[#fca311] shrink-0" /> v0.1.0-SIH
+              <Terminal className="w-3 h-3 text-[#fca311] shrink-0" /> v0.1.0-Hackspire
             </span>
           )}
           <button

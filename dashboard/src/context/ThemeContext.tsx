@@ -12,7 +12,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_STORAGE_KEY = 'sih_theme_preference';
+const THEME_STORAGE_KEY = 'Hackspire_theme_preference';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const applyThemeToDOM = (t: Theme) => {

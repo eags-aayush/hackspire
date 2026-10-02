@@ -129,7 +129,7 @@ export function DigitalTwinMap({
 
     // Custom positioned zoom control
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.control.attribution({ position: 'bottomleft', prefix: 'SIH-2026 Digital Twin GIS' }).addTo(map);
+    L.control.attribution({ position: 'bottomleft', prefix: 'Hackspire-2026 Digital Twin GIS' }).addTo(map);
 
     // Add initial base tile layer
     const baseTile = TILE_PROVIDERS[activeBaseTile];

@@ -1,4 +1,4 @@
-# System Overview & Architecture Hand-off: SIH-2026 Mine Subsidence Monitoring System
+# System Overview & Architecture Hand-off: Hackspire-2026 Mine Subsidence Monitoring System
 
 > **Purpose**: This document provides a complete, canonical overview of the project architecture, data pipeline, technology stack, directory structure, and design invariants. It is designed to serve as a comprehensive context primer for developers, researchers, and AI models.
 
@@ -6,7 +6,7 @@
 
 ## 1. Executive Summary & Problem Scope
 
-- **Parent Project**: Smart India Hackathon (SIH 2026) — *AI-Enabled Low-Cost Real-Time Mine Subsidence Monitoring, Prediction & Early Warning System*.
+- **Parent Project**: Smart India Hackathon (Hackspire 2026) — *AI-Enabled Low-Cost Real-Time Mine Subsidence Monitoring, Prediction & Early Warning System*.
 - **Physical Domain**: Open-cast and underground coal/mineral mines where geological strata movement, rock mass shifts, fault slip, pore-water pressure, and seismic blasting vibrations cause sudden ground collapse (subsidence).
 - **Core Engineering Challenge**: Ingest high-frequency, continuous telemetry from distributed mine mesh nodes via MQTT, validate and deduplicate packets without data loss, detect sequence gaps (safety-critical packet loss indicators), and broadcast real-time state to an operations dashboard with sub-500ms latency.
 - **Current Repository Scope**:
@@ -166,7 +166,7 @@ message ZoneSnapshot {
 ## 5. Directory Structure & Key File Map
 
 ```text
-SIH-2026/
+Hackspire-2026/
 ├── PROJECT_OVERVIEW.md             # This comprehensive architecture handoff document
 ├── docker-compose.yml              # Multi-container orchestration (EMQX, InfluxDB Cloud, Backend, Dashboard)
 ├── proto/

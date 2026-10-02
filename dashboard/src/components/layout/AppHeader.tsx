@@ -107,7 +107,7 @@ export function AppHeader() {
               GEO-MESH <span className="text-[#fca311]">SUBSIDENCE</span>
             </span>
             <span className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase rounded-md bg-[#e5e5e5] dark:bg-[#14213d] text-[#14213d] dark:text-[#fca311] border border-[#d4d4d4] dark:border-[#14213d] shrink-0">
-              SIH-2026
+              Hackspire-2026
             </span>
           </div>
           <p className="text-[10px] text-[#5c677d] dark:text-[#94a3b8] hidden 2xl:block font-medium truncate">

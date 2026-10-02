@@ -95,7 +95,7 @@ export function ReportModal({ isOpen, onClose, report }: ReportModalProps) {
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 font-mono">
-                DGMS Circular No. 2 &amp; SIH-2026 Boardroom Print-Ready Format
+                DGMS Circular No. 2 &amp; Hackspire-2026 Boardroom Print-Ready Format
               </p>
             </div>
           </div>

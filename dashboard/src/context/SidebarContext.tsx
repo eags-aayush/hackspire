@@ -19,7 +19,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('sih_sidebar_collapsed');
+        const saved = localStorage.getItem('Hackspire_sidebar_collapsed');
         if (saved !== null) {
           return saved === 'true';
         }
@@ -53,7 +53,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     setCollapsed(prev => {
       const next = !prev;
       try {
-        localStorage.setItem('sih_sidebar_collapsed', String(next));
+        localStorage.setItem('Hackspire_sidebar_collapsed', String(next));
       } catch {
         // Ignore localStorage error
       }

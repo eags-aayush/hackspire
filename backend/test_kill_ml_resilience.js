@@ -108,10 +108,10 @@ mqttClient.on('connect', async () => {
 
   console.log('\n--- Phase D: Restarting ML Inference Service ---');
   const mlService = spawn(
-    'e:\\SIH-2026\\ML-Server\\.venv\\Scripts\\python.exe',
+    'e:\\Hackspire-2026\\ML-Server\\.venv\\Scripts\\python.exe',
     ['-m', 'uvicorn', 'app:app', '--host', '0.0.0.0', '--port', '8000'],
     {
-      cwd: 'e:\\SIH-2026\\ML-Server\\inference-service',
+      cwd: 'e:\\Hackspire-2026\\ML-Server\\inference-service',
       detached: true,
       stdio: 'ignore',
     },

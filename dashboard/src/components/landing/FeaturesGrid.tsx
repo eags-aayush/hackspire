@@ -68,7 +68,7 @@ export function FeaturesGrid() {
           Engineered for Extreme Mining Reliability
         </h2>
         <p className="mt-2 text-sm text-[#5c677d] dark:text-[#94a3b8]">
-          Built according to the rigorous requirements of SIH-2026 and geotechnical subsidence safety guidelines.
+          Built according to the rigorous requirements of Hackspire-2026 and geotechnical subsidence safety guidelines.
         </p>
       </div>
 

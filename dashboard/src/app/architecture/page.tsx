@@ -303,7 +303,7 @@ setMetrics(prev => ({
         {/* Hackathon Credentials Badge */}
         <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
           <div className="px-3.5 py-1.5 rounded-xl bg-[#f4f5f7] dark:bg-[#14213d]/70 border border-[#e5e5e5] dark:border-[#14213d] text-xs font-mono text-[#14213d] dark:text-[#e5e5e5] shadow-sm">
-            Parent Spec: <span className="text-amber-700 dark:text-[#fca311] font-bold">SIH 2026 Coal Mine Subsidence</span>
+            Parent Spec: <span className="text-amber-700 dark:text-[#fca311] font-bold">Hackspire 2026 Coal Mine Subsidence</span>
           </div>
           <div className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-mono font-bold flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5" />
