@@ -32,6 +32,8 @@ import {
   AlertTriangle,
   MoveDown,
   Navigation,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 export type BaseTileType = 'dark' | 'satellite' | 'osm' | 'topo';
@@ -78,6 +80,7 @@ export function DigitalTwinMap({
   timeTravelOffsetHours = 0,
   focusedZoneId,
 }: DigitalTwinMapProps) {
+  const mapRootRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -93,12 +96,96 @@ export function DigitalTwinMap({
   const toolsLayerGroupRef = useRef<L.LayerGroup | null>(null);
 
   // UI state
-  const [activeBaseTile, setActiveBaseTile] = useState<BaseTileType>('dark');
-  const [showLayerDrawer, setShowLayerDrawer] = useState(false);
+  const [activeBaseTile, setActiveBaseTile] = useState<BaseTileType>('satellite');
+  const [showLegend, setShowLegend] = useState(true);
   const [measureModeActive, setMeasureModeActive] = useState(false);
   const [measureDistanceM, setMeasureDistanceM] = useState<number | null>(null);
   const [bufferRadiusActive, setBufferRadiusActive] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Sync fullscreen state with browser Fullscreen API (including ESC key)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFs = Boolean(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreen(isFs);
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 150);
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 350);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const isCurrentlyFullscreen = Boolean(
+      document.fullscreenElement ||
+      (document as any).webkitFullscreenElement ||
+      (document as any).mozFullScreenElement ||
+      (document as any).msFullscreenElement ||
+      isFullscreen
+    );
+
+    if (!isCurrentlyFullscreen) {
+      const el = mapRootRef.current;
+      if (el) {
+        if (el.requestFullscreen) {
+          try {
+            await el.requestFullscreen();
+            return;
+          } catch {
+            // fallback to CSS fullscreen
+          }
+        } else if ((el as any).webkitRequestFullscreen) {
+          try {
+            await (el as any).webkitRequestFullscreen();
+            return;
+          } catch {
+            // fallback
+          }
+        }
+      }
+      setIsFullscreen(true);
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 150);
+    } else {
+      if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+        try {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+            return;
+          } else if ((document as any).webkitExitFullscreen) {
+            await (document as any).webkitExitFullscreen();
+            return;
+          }
+        } catch {
+          // fallback
+        }
+      }
+      setIsFullscreen(false);
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 150);
+    }
+  }, [isFullscreen]);
 
   // Layer toggles
   const [layerVisibility, setLayerVisibility] = useState({
@@ -127,8 +214,8 @@ export function DigitalTwinMap({
       minZoom: 13,
     });
 
-    // Custom positioned zoom control
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    // Custom positioned zoom control at topright below the toolbar
+    L.control.zoom({ position: 'topright' }).addTo(map);
     L.control.attribution({ position: 'bottomleft', prefix: 'Hackspire-2026 Digital Twin GIS' }).addTo(map);
 
     // Add initial base tile layer
@@ -616,8 +703,9 @@ export function DigitalTwinMap({
 
   return (
     <div
+      ref={mapRootRef}
       className={`relative w-full rounded-2xl overflow-hidden border border-[#e5e5e5] dark:border-[#14213d] shadow-xl bg-[#000000] transition-all duration-300 ${
-        isFullscreen ? 'fixed inset-0 z-50 rounded-none h-screen w-screen' : 'h-[620px]'
+        isFullscreen ? '!fixed !inset-0 !z-[9999] !w-screen !h-screen !rounded-none !m-0 !p-0' : 'h-[620px]'
       }`}
     >
       {/* The Leaflet DOM container */}
@@ -628,16 +716,6 @@ export function DigitalTwinMap({
         {/* Base Map Switcher Pill */}
         <div className="flex items-center p-1 rounded-xl bg-white/90 dark:bg-[#0a1120]/90 backdrop-blur-md border border-[#e5e5e5] dark:border-[#14213d] shadow-lg text-xs font-semibold">
           <button
-            onClick={() => setActiveBaseTile('dark')}
-            className={`px-2.5 py-1.5 rounded-lg transition-all ${
-              activeBaseTile === 'dark'
-                ? 'bg-[#14213d] text-[#fca311] shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
-            }`}
-          >
-            Dark GIS
-          </button>
-          <button
             onClick={() => setActiveBaseTile('satellite')}
             className={`px-2.5 py-1.5 rounded-lg transition-all ${
               activeBaseTile === 'satellite'
@@ -646,6 +724,16 @@ export function DigitalTwinMap({
             }`}
           >
             Satellite
+          </button>
+          <button
+            onClick={() => setActiveBaseTile('dark')}
+            className={`px-2.5 py-1.5 rounded-lg transition-all ${
+              activeBaseTile === 'dark'
+                ? 'bg-[#14213d] text-[#fca311] shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
+            }`}
+          >
+            Dark GIS
           </button>
           <button
             onClick={() => setActiveBaseTile('osm')}
@@ -700,21 +788,8 @@ export function DigitalTwinMap({
         </div>
       </div>
 
-      {/* Top Right Tool Bar: Layers Drawer, Measurement, Fullscreen */}
+      {/* Top Right Tool Bar: Spatial Measurement, Safety Buffer, Fullscreen */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-        {/* Layer Visibility Toggle Button */}
-        <button
-          onClick={() => setShowLayerDrawer(!showLayerDrawer)}
-          className={`p-2.5 rounded-xl backdrop-blur-md border shadow-lg transition-all ${
-            showLayerDrawer
-              ? 'bg-[#fca311] text-black border-[#fca311]'
-              : 'bg-white/90 dark:bg-[#0a1120]/90 text-slate-700 dark:text-white border-[#e5e5e5] dark:border-[#14213d] hover:border-[#fca311]'
-          }`}
-          title="GIS Vector Layers"
-        >
-          <Layers className="w-4 h-4" />
-        </button>
-
         {/* Spatial Measurement Ruler */}
         <button
           onClick={() => {
@@ -754,131 +829,139 @@ export function DigitalTwinMap({
           {bufferRadiusActive && <span className="font-mono font-bold">{bufferRadiusActive}m Buffer</span>}
         </button>
 
-        {/* Fullscreen Expand Button */}
+        {/* Fullscreen Expand / Collapse Button */}
         <button
-          onClick={() => {
-            setIsFullscreen(!isFullscreen);
-            setTimeout(() => {
-              mapInstanceRef.current?.invalidateSize();
-            }, 300);
-          }}
+          onClick={toggleFullscreen}
           className="p-2.5 rounded-xl bg-white/90 dark:bg-[#0a1120]/90 backdrop-blur-md text-slate-700 dark:text-white border border-[#e5e5e5] dark:border-[#14213d] hover:border-[#fca311] shadow-lg transition-all"
-          title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Map View'}
+          title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Fullscreen Map View'}
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
       </div>
 
-      {/* Floating GIS Vector Layers Drawer */}
-      {showLayerDrawer && (
-        <div className="absolute top-16 right-4 z-30 w-64 p-3.5 rounded-2xl bg-white/95 dark:bg-[#0a1120]/95 backdrop-blur-xl border border-[#e5e5e5] dark:border-[#14213d] shadow-2xl text-xs space-y-2.5 animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center justify-between pb-2 border-b border-[#e5e5e5] dark:border-[#14213d] font-bold text-[#14213d] dark:text-white">
-            <span className="flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-[#fca311]" />
-              GIS Feature Overlays
-            </span>
-            <button
-              onClick={() => setShowLayerDrawer(false)}
-              className="text-slate-400 hover:text-black dark:hover:text-white text-xs font-mono"
-            >
-              ✕
-            </button>
+      {/* Bottom Right GIS Vector Layers Legend & Checklist (Open by default) */}
+      <div className="absolute bottom-4 right-4 z-20 max-w-[270px] w-auto">
+        {showLegend ? (
+          <div className="p-3 rounded-2xl bg-white/95 dark:bg-[#0a1120]/95 backdrop-blur-xl border border-[#e5e5e5] dark:border-[#14213d] shadow-2xl text-xs space-y-2 animate-in fade-in slide-in-from-bottom-2 select-none">
+            <div className="flex items-center justify-between pb-1.5 border-b border-[#e5e5e5] dark:border-[#14213d] font-bold text-[#14213d] dark:text-white">
+              <span className="flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-[#fca311]" />
+                GIS Vector Layers
+              </span>
+              <button
+                onClick={() => setShowLegend(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-black dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#14213d]/60 transition-all text-xs"
+                title="Collapse Legend"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="space-y-1 font-medium max-h-[220px] overflow-y-auto pr-0.5">
+              <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer transition-colors">
+                <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-[#fca311]" />
+                  Mine Lease Perimeter
+                </span>
+                <input
+                  type="checkbox"
+                  checked={layerVisibility.boundary}
+                  onChange={e => setLayerVisibility({ ...layerVisibility, boundary: e.target.checked })}
+                  className="accent-[#fca311] rounded cursor-pointer"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer transition-colors">
+                <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-slate-500" />
+                  Pit Excavation Benches
+                </span>
+                <input
+                  type="checkbox"
+                  checked={layerVisibility.benches}
+                  onChange={e => setLayerVisibility({ ...layerVisibility, benches: e.target.checked })}
+                  className="accent-[#fca311] rounded cursor-pointer"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer transition-colors">
+                <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-red-500" />
+                  Geological Fault Lines
+                </span>
+                <input
+                  type="checkbox"
+                  checked={layerVisibility.faults}
+                  onChange={e => setLayerVisibility({ ...layerVisibility, faults: e.target.checked })}
+                  className="accent-[#fca311] rounded cursor-pointer"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer transition-colors">
+                <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-red-500/50 border border-red-500" />
+                  Subsidence Hazard Zones
+                </span>
+                <input
+                  type="checkbox"
+                  checked={layerVisibility.hazardZones}
+                  onChange={e => setLayerVisibility({ ...layerVisibility, hazardZones: e.target.checked })}
+                  className="accent-[#fca311] rounded cursor-pointer"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer transition-colors">
+                <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                  Evacuation Corridors
+                </span>
+                <input
+                  type="checkbox"
+                  checked={layerVisibility.evacuation}
+                  onChange={e => setLayerVisibility({ ...layerVisibility, evacuation: e.target.checked })}
+                  className="accent-[#fca311] rounded cursor-pointer"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer transition-colors">
+                <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#fca311] border border-black" />
+                  LoRa Wireless Mesh Links
+                </span>
+                <input
+                  type="checkbox"
+                  checked={layerVisibility.meshLinks}
+                  onChange={e => setLayerVisibility({ ...layerVisibility, meshLinks: e.target.checked })}
+                  className="accent-[#fca311] rounded cursor-pointer"
+                />
+              </label>
+
+              <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer transition-colors">
+                <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                  <Radio className="w-3 h-3 text-[#fca311]" />
+                  Sensor Nodes (IoT Beacons)
+                </span>
+                <input
+                  type="checkbox"
+                  checked={layerVisibility.nodes}
+                  onChange={e => setLayerVisibility({ ...layerVisibility, nodes: e.target.checked })}
+                  className="accent-[#fca311] rounded cursor-pointer"
+                />
+              </label>
+            </div>
           </div>
-
-          <div className="space-y-1.5 font-medium">
-            <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer">
-              <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                <span className="w-2.5 h-2.5 rounded-sm bg-[#fca311]" />
-                Mine Lease Perimeter
-              </span>
-              <input
-                type="checkbox"
-                checked={layerVisibility.boundary}
-                onChange={e => setLayerVisibility({ ...layerVisibility, boundary: e.target.checked })}
-                className="accent-[#fca311] rounded cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer">
-              <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                <span className="w-2.5 h-2.5 rounded-sm bg-slate-500" />
-                Pit Excavation Benches
-              </span>
-              <input
-                type="checkbox"
-                checked={layerVisibility.benches}
-                onChange={e => setLayerVisibility({ ...layerVisibility, benches: e.target.checked })}
-                className="accent-[#fca311] rounded cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer">
-              <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                <span className="w-2.5 h-2.5 rounded-sm bg-red-500" />
-                Geological Fault Lines
-              </span>
-              <input
-                type="checkbox"
-                checked={layerVisibility.faults}
-                onChange={e => setLayerVisibility({ ...layerVisibility, faults: e.target.checked })}
-                className="accent-[#fca311] rounded cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer">
-              <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                <span className="w-2.5 h-2.5 rounded-sm bg-red-500/50 border border-red-500" />
-                Subsidence Hazard Iso-Zones
-              </span>
-              <input
-                type="checkbox"
-                checked={layerVisibility.hazardZones}
-                onChange={e => setLayerVisibility({ ...layerVisibility, hazardZones: e.target.checked })}
-                className="accent-[#fca311] rounded cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer">
-              <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
-                Evacuation Corridors
-              </span>
-              <input
-                type="checkbox"
-                checked={layerVisibility.evacuation}
-                onChange={e => setLayerVisibility({ ...layerVisibility, evacuation: e.target.checked })}
-                className="accent-[#fca311] rounded cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer">
-              <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#fca311] border border-black" />
-                LoRa Wireless Mesh Links
-              </span>
-              <input
-                type="checkbox"
-                checked={layerVisibility.meshLinks}
-                onChange={e => setLayerVisibility({ ...layerVisibility, meshLinks: e.target.checked })}
-                className="accent-[#fca311] rounded cursor-pointer"
-              />
-            </label>
-
-            <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#14213d]/40 cursor-pointer">
-              <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                <Radio className="w-3 h-3 text-[#fca311]" />
-                Sensor Nodes (IoT Beacons)
-              </span>
-              <input
-                type="checkbox"
-                checked={layerVisibility.nodes}
-                onChange={e => setLayerVisibility({ ...layerVisibility, nodes: e.target.checked })}
-                className="accent-[#fca311] rounded cursor-pointer"
-              />
-            </label>
-          </div>
-        </div>
-      )}
+        ) : (
+          <button
+            onClick={() => setShowLegend(true)}
+            className="p-2.5 rounded-xl bg-white/90 dark:bg-[#0a1120]/90 backdrop-blur-md text-slate-700 dark:text-white border border-[#e5e5e5] dark:border-[#14213d] hover:border-[#fca311] shadow-xl flex items-center gap-2 text-xs font-semibold transition-all hover:scale-105"
+            title="Expand GIS Layers Legend"
+          >
+            <Layers className="w-4 h-4 text-[#fca311]" />
+            <span>GIS Layers</span>
+            <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+          </button>
+        )}
+      </div>
 
       {/* Bottom Floating Mine GIS Coordinates & Active Node Telemetry Banner */}
       <div className="absolute bottom-4 left-4 z-20 hidden md:flex items-center gap-3 px-3.5 py-2 rounded-xl bg-white/90 dark:bg-[#0a1120]/90 backdrop-blur-md border border-[#e5e5e5] dark:border-[#14213d] shadow-lg text-xs font-mono">
@@ -902,6 +985,41 @@ export function DigitalTwinMap({
 
       {/* CSS Styles for Leaflet tooltips & Popups */}
       <style jsx global>{`
+        :fullscreen, :-webkit-full-screen {
+          width: 100vw !important;
+          height: 100vh !important;
+          border-radius: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #000000 !important;
+        }
+        :fullscreen .leaflet-container, :-webkit-full-screen .leaflet-container {
+          width: 100vw !important;
+          height: 100vh !important;
+        }
+        .leaflet-top.leaflet-right {
+          margin-top: 60px !important;
+          margin-right: 16px !important;
+        }
+        .leaflet-touch .leaflet-bar {
+          border: 1px solid rgba(255, 255, 255, 0.15) !important;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+          border-radius: 12px !important;
+          overflow: hidden;
+        }
+        .leaflet-touch .leaflet-bar a {
+          background-color: rgba(10, 17, 32, 0.88) !important;
+          color: #fca311 !important;
+          backdrop-filter: blur(8px);
+          width: 32px !important;
+          height: 32px !important;
+          line-height: 32px !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+        .leaflet-touch .leaflet-bar a:hover {
+          background-color: #14213d !important;
+          color: #ffffff !important;
+        }
         .gis-custom-tooltip {
           background: rgba(10, 17, 32, 0.9) !important;
           backdrop-filter: blur(8px);
