@@ -14,13 +14,13 @@ const char* WIFI_SSID     = "ISP";
 const char* WIFI_PASSWORD = "qwerfdsa";
 
 // ---------------- MQTT broker settings ----------------
-const char* MQTT_BROKER    = "10.30.87.90";   // broker IP or hostname
-const int   MQTT_PORT      = 1883;
+const char* MQTT_BROKER    = "mqtts://td1cf1ce.ala.asia-southeast1.emqxsl.com:8883";   // broker IP or hostname
+const int   MQTT_PORT      = 8883;
 const char* MQTT_CLIENT_ID = "esp32-lora-gateway";
 const char* MQTT_TOPIC     = "sensors/lora/binary";  // publish topic
 // Optional, leave blank ("") if your broker doesn't require auth
-const char* MQTT_USER      = "";
-const char* MQTT_PASS      = "";
+const char* MQTT_USER      = "aayush";
+const char* MQTT_PASS      = "qwerfdsa";
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
