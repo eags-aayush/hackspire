@@ -8,13 +8,14 @@
 #include <LoRa.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <WiFiClientSecure.h>
 
 // ---------------- WiFi credentials ----------------
 const char* WIFI_SSID     = "ISP";
 const char* WIFI_PASSWORD = "qwerfdsa";
 
 // ---------------- MQTT broker settings ----------------
-const char* MQTT_BROKER    = "mqtts://td1cf1ce.ala.asia-southeast1.emqxsl.com:8883";   // broker IP or hostname
+const char* MQTT_BROKER    = "td1cf1ce.ala.asia-southeast1.emqxsl.com"; 
 const int   MQTT_PORT      = 8883;
 const char* MQTT_CLIENT_ID = "esp32-lora-gateway";
 const char* MQTT_TOPIC     = "sensors/lora/binary";  // publish topic
@@ -22,7 +23,7 @@ const char* MQTT_TOPIC     = "sensors/lora/binary";  // publish topic
 const char* MQTT_USER      = "aayush";
 const char* MQTT_PASS      = "qwerfdsa";
 
-WiFiClient espClient;
+WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
 
 // ---------------- LoRa pins (must match transmitter) ----------------
@@ -174,6 +175,7 @@ void setupWiFi() {
     Serial.println();
     Serial.print("WiFi connected. IP address: ");
     Serial.println(WiFi.localIP());
+    espClient.setInsecure();
   }
 }
 
