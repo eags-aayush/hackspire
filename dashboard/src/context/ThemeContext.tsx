@@ -34,16 +34,56 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-      return stored === 'light' || stored === 'dark' ? stored : 'dark';
+      if (stored === 'light' || stored === 'dark') return stored;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
     return 'dark';
   });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    applyThemeToDOM(theme);
+    // Synchronize state with whatever theme class the inline blocking script applied to <html>
+    const root = document.documentElement;
+    const isDarkInDOM = root.classList.contains('dark');
+    const currentDomTheme: Theme = isDarkInDOM ? 'dark' : 'light';
+    if (currentDomTheme !== theme) {
+      setThemeState(currentDomTheme);
+    }
+    applyThemeToDOM(currentDomTheme);
     setMounted(true);
-  }, [theme]);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    applyThemeToDOM(theme);
+  }, [theme, mounted]);
+
+  // Synchronize across tabs and listen for OS system theme changes if no manual preference is saved
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === THEME_STORAGE_KEY && (e.newValue === 'light' || e.newValue === 'dark')) {
+        setThemeState(e.newValue);
+        applyThemeToDOM(e.newValue);
+      }
+    };
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSystemChange = (e: MediaQueryListEvent) => {
+      const stored = localStorage.getItem(THEME_STORAGE_KEY);
+      if (!stored) {
+        const nextSystemTheme: Theme = e.matches ? 'dark' : 'light';
+        setThemeState(nextSystemTheme);
+        applyThemeToDOM(nextSystemTheme);
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    mediaQuery.addEventListener('change', handleSystemChange);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      mediaQuery.removeEventListener('change', handleSystemChange);
+    };
+  }, []);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);

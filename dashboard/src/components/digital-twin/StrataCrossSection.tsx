@@ -40,11 +40,23 @@ export function StrataCrossSection({
 
   // Active or fallback node
   const activeNodeId = selectedNodeId || 'NODE_03';
-  const nodeInfo = MINING_NODE_REGISTRY[activeNodeId] || MINING_NODE_REGISTRY.NODE_03;
+  const nodeInfo = MINING_NODE_REGISTRY[activeNodeId] || MINING_NODE_REGISTRY.NODE_03 || {
+    nodeId: activeNodeId,
+    zoneId: 'ZONE_01_LONGWALL_FACE',
+    label: `Sensor ${activeNodeId}`,
+    criticalThresholdTilt: 3.5,
+    criticalThresholdDisp: 25.0,
+    coordinates: [23.7494, 86.4212],
+    depthM: 168,
+    strataLayer: 'Immediate Roof / Main Seam XI',
+    installationDate: '2025-11-15',
+  };
+
+  const zoneId = nodeInfo?.zoneId || 'ZONE_01_LONGWALL_FACE';
 
   // Live telemetry for active node
-  const nodeReads = readings[nodeInfo.zoneId]?.[activeNodeId] || {};
-  const statusObj = nodeStatuses[nodeInfo.zoneId]?.[activeNodeId];
+  const nodeReads = readings[zoneId]?.[activeNodeId] || {};
+  const statusObj = nodeStatuses[zoneId]?.[activeNodeId];
   const isOnline = statusObj?.status === 'online';
 
   // Base live metrics
@@ -141,7 +153,7 @@ export function StrataCrossSection({
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#14213d]/60 border border-[#e5e5e5] dark:border-[#14213d] text-xs font-mono">
             <span className="text-slate-400">Target Probe:</span>
             <span className="font-extrabold text-[#fca311]">{activeNodeId}</span>
-            <span className="text-slate-400">({nodeInfo.label})</span>
+            <span className="text-slate-400">({nodeInfo?.label || activeNodeId})</span>
           </div>
 
           <button
@@ -451,7 +463,7 @@ export function StrataCrossSection({
               {rawTilt.toFixed(2)}° <span className="text-xs text-slate-500">dip</span>
             </div>
             <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-              Threshold: {nodeInfo.criticalThresholdTilt}° Limit
+              Threshold: {nodeInfo?.criticalThresholdTilt || 3.5}° Limit
             </div>
           </div>
 

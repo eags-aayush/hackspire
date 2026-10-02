@@ -21,8 +21,6 @@ import {
   Volume2,
   VolumeX,
   Menu,
-  PanelLeft,
-  PanelLeftClose,
 } from 'lucide-react';
 
 export function AppHeader() {
@@ -40,7 +38,7 @@ export function AppHeader() {
     isSpeaking,
   } = useRealtime();
   const { theme, toggleTheme } = useTheme();
-  const { collapsed, toggleSidebar, toggleMobileOpen } = useSidebar();
+  const { toggleMobileOpen } = useSidebar();
   const [timeString, setTimeString] = useState<string>('');
   const [purgedRecently, setPurgedRecently] = useState(false);
 
@@ -82,16 +80,6 @@ export function AppHeader() {
           aria-label="Open Navigation Menu"
         >
           <Menu className="w-4 h-4" />
-        </button>
-
-        {/* Desktop Sidebar Toggle Icon Button (>= 1024px) */}
-        <button
-          onClick={toggleSidebar}
-          className="hidden lg:flex p-2 rounded-xl bg-[#f4f5f7] hover:bg-[#e5e5e5] dark:bg-[#14213d]/60 dark:hover:bg-[#14213d] text-[#14213d] dark:text-[#fca311] border border-[#e5e5e5] dark:border-[#14213d] hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label="Toggle sidebar"
-        >
-          {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
         </button>
 
         {/* Brand Icon */}

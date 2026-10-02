@@ -17,6 +17,8 @@ import {
   BrainCircuit,
   Globe2,
   X,
+  PanelLeft,
+  PanelLeftClose,
 } from 'lucide-react';
 import { useRealtime } from '@/hooks/useRealtime';
 import { useSidebar } from '@/context/SidebarContext';
@@ -211,6 +213,29 @@ export function AppSidebar() {
           collapsed ? 'w-16' : 'w-64'
         )}
       >
+        {/* Desktop Sidebar Top Header with Toggle Button */}
+        <div
+          className={cn(
+            'h-16 border-b border-[#e5e5e5] dark:border-[#14213d]/80 flex items-center shrink-0 min-w-0 transition-all duration-300',
+            collapsed ? 'justify-center px-2' : 'justify-between px-3.5'
+          )}
+        >
+          {!collapsed && (
+            <div className="flex items-center gap-2 font-black text-xs tracking-wider text-[#000000] dark:text-white truncate">
+              <span className="text-[#fca311]">GEO-MESH</span> HUB
+            </div>
+          )}
+
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded-xl bg-[#f4f5f7] hover:bg-[#e5e5e5] dark:bg-[#14213d]/60 dark:hover:bg-[#14213d] text-[#14213d] dark:text-[#fca311] border border-[#e5e5e5] dark:border-[#14213d] hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
+            title={collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          </button>
+        </div>
+
         {renderNavList(false)}
 
         {/* Pipeline Quick Info */}

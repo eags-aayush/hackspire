@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Script from "next/script";
 import { RealtimeProvider } from "@/context/RealtimeContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AppShell } from "@/components/layout/AppShell";
@@ -89,29 +88,36 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plusJakartaSans.variable} ${playfairDisplay.variable} ${roboto.variable} ${dancingScript.variable} ${storyScript.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${plusJakartaSans.variable} ${playfairDisplay.variable} ${roboto.variable} ${dancingScript.variable} ${storyScript.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
-        {/* Anti-FOUC script to synchronize saved theme immediately */}
-        <Script
-          id="theme-initializer"
-          strategy="beforeInteractive"
+        {/* Synchronous inline script to prevent theme flash (anti-FOUC) before first paint */}
+        <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
                   var stored = localStorage.getItem('Hackspire_theme_preference');
-                  var theme = stored === 'light' ? 'light' : 'dark';
+                  var isDark;
+                  if (stored === 'light') {
+                    isDark = false;
+                  } else if (stored === 'dark') {
+                    isDark = true;
+                  } else {
+                    isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  }
                   var root = document.documentElement;
-                  if (theme === 'dark') {
+                  if (isDark) {
                     root.classList.add('dark');
                     root.classList.remove('light');
                     root.setAttribute('data-theme', 'dark');
+                    root.style.colorScheme = 'dark';
                   } else {
-                    root.classList.add('light');
                     root.classList.remove('dark');
+                    root.classList.add('light');
                     root.setAttribute('data-theme', 'light');
+                    root.style.colorScheme = 'light';
                   }
                 } catch(e) {}
               })();
