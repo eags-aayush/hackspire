@@ -1207,7 +1207,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     // High-performance Binary Protobuf Handlers
     function handleProtoSnapshot(binaryData: unknown) {
       try {
-        const decoded = decodeZoneSnapshot(binaryData);
+        const decoded = decodeZoneSnapshot(binaryData instanceof Uint8Array ? binaryData : new Uint8Array(binaryData as ArrayBuffer));
         const approxJson = decoded.readings.length * 155 + decoded.statuses.length * 90;
         handleSnapshot({
           readings: decoded.readings,
@@ -1228,7 +1228,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     function handleProtoReadings(binaryData: unknown) {
       try {
         lastProtoReceivedAtRef.current = Date.now();
-        const decoded = decodeSensorReadingBatch(binaryData);
+        const decoded = decodeSensorReadingBatch(binaryData instanceof Uint8Array ? binaryData : new Uint8Array(binaryData as ArrayBuffer));
         const approxJsonSize = Math.max(decoded.rawByteSize, decoded.readings.length * 155);
         const savedPct = Math.min(95, Math.max(30, Math.round((1 - decoded.rawByteSize / approxJsonSize) * 100)));
 
@@ -1249,7 +1249,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
     function handleProtoNodeStatuses(binaryData: unknown) {
       try {
-        const decoded = decodeNodeStatusBatch(binaryData);
+        const decoded = decodeNodeStatusBatch(binaryData instanceof Uint8Array ? binaryData : new Uint8Array(binaryData as ArrayBuffer));
         const approxJson = decoded.statuses.length * 90;
         processNodeStatuses(decoded.statuses);
         setMetrics(prev => ({

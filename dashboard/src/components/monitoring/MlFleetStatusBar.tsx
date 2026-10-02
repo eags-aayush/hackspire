@@ -60,6 +60,8 @@ export function MlFleetStatusBar({
   // Poll ML microservice on 127.0.0.1:8000
   useEffect(() => {
     let isMounted = true;
+    let timerId: NodeJS.Timeout;
+    let currentInterval = 5000;
 
     const checkService = async () => {
       try {
@@ -72,6 +74,7 @@ export function MlFleetStatusBar({
           const hData = await healthRes.json();
           setHealthInfo(hData);
           setIsLiveOnline(true);
+          currentInterval = 5000; // reset on success
         }
 
         if (driftRes.ok && isMounted) {
@@ -81,15 +84,19 @@ export function MlFleetStatusBar({
       } catch {
         if (isMounted) {
           setIsLiveOnline(false);
+          currentInterval = Math.min(60000, currentInterval * 2); // Exponential backoff up to 60s
         }
+      }
+      
+      if (isMounted) {
+        timerId = setTimeout(checkService, currentInterval);
       }
     };
 
     checkService();
-    const interval = setInterval(checkService, 5000);
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      clearTimeout(timerId);
     };
   }, []);
 
