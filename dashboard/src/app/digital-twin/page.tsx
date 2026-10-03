@@ -42,6 +42,8 @@ export default function DigitalTwinPage() {
     mlPredictions,
     metrics,
     stats,
+    isSerialConnected,
+    livePortData,
     isSimulationActive,
     toggleSimulation,
     triggerDemoMlEvent,
@@ -74,10 +76,22 @@ export default function DigitalTwinPage() {
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <div className="flex items-center gap-2 text-xs text-[#003366] dark:text-white bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-[#c9c9c9] dark:border-slate-700 shadow-sm">
             <span className="text-slate-500 dark:text-slate-400">DGMS Portal Link:</span>
-            <span className="text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
-              100% NOMINAL
-            </span>
+            {isSerialConnected ? (
+              <span className="text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
+                SERIAL PORT LIVE ({livePortData?.nodeId || 'COM'})
+              </span>
+            ) : stats.onlineNodes > 0 ? (
+              <span className="text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
+                CLOUD MESH ({stats.onlineNodes} NODES)
+              </span>
+            ) : (
+              <span className="text-slate-500 dark:text-slate-400 font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-slate-400" />
+                OFFLINE (AWAITING PORT)
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -100,8 +114,12 @@ export default function DigitalTwinPage() {
         </div>
 
         <div className="p-3.5 rounded-xl bg-white dark:bg-[#1e293b]/70 border border-[#c9c9c9] dark:border-[#334155] border-l-4 border-l-[#003366] dark:border-l-[#c9a227] shadow-sm">
-          <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 leading-none">6 Beacons</div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1">Jharia LoRa Mesh Nodes (100%)</div>
+          <div className={`text-2xl font-bold leading-none ${isSerialConnected || stats.onlineNodes > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400'}`}>
+            {isSerialConnected ? '1 Live Port' : stats.onlineNodes > 0 ? `${stats.onlineNodes} Beacons` : '--'}
+          </div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1">
+            {isSerialConnected ? 'Active USB Serial Hardware Stream' : stats.onlineNodes > 0 ? `Jharia LoRa Mesh Nodes (${stats.onlineNodes}/${stats.totalNodes})` : 'Awaiting Port Connection'}
+          </div>
         </div>
       </div>
 

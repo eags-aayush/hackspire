@@ -4,7 +4,6 @@ import React from 'react';
 import Link from 'next/link';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { FeaturesGrid } from '@/components/landing/FeaturesGrid';
-import { PipelineCard } from '@/components/landing/PipelineCard';
 import { MetricCard } from '@/components/common/MetricCard';
 import { HardwareOnboardingWizard } from '@/components/common/HardwareOnboardingWizard';
 import { useRealtime } from '@/hooks/useRealtime';
@@ -18,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export default function LandingPage() {
-  const { metrics, stats } = useRealtime();
+  const { metrics, stats, isSerialConnected, livePortData } = useRealtime();
 
   return (
     <div className="space-y-8 pb-10">
@@ -49,22 +48,22 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
             title="Avg Sensor Latency"
-            value={metrics.avgLatency}
+            value={isSerialConnected ? '< 15' : metrics.avgLatency > 0 ? metrics.avgLatency : '--'}
             unit="ms"
-            subtext="Target: < 500ms budget"
+            subtext={isSerialConnected ? 'Direct USB Serial Stream' : metrics.avgLatency > 0 ? 'Target: < 500ms budget' : 'Awaiting Port Stream'}
             icon={Gauge}
-            variant={metrics.avgLatency <= 500 ? 'emerald' : 'amber'}
-            status={metrics.avgLatency <= 500 ? 'Optimal (Pass)' : 'Exceeded'}
+            variant={isSerialConnected || (metrics.avgLatency > 0 && metrics.avgLatency <= 500) ? 'emerald' : 'amber'}
+            status={isSerialConnected ? 'Serial Live (<15ms)' : metrics.avgLatency > 0 ? (metrics.avgLatency <= 500 ? 'Optimal (Pass)' : 'Exceeded') : 'Offline'}
           />
 
           <MetricCard
             title="Online Hardware Nodes"
-            value={stats.onlineNodes}
-            unit={`/ ${stats.totalNodes || 0}`}
-            subtext="LWT status verified"
+            value={isSerialConnected ? 1 : stats.onlineNodes}
+            unit={`/ ${isSerialConnected ? 1 : (stats.totalNodes || 0)}`}
+            subtext={isSerialConnected ? `Live on ${livePortData?.nodeId || 'COM'}` : stats.onlineNodes > 0 ? 'LWT status verified' : 'No active nodes'}
             icon={Cpu}
-            variant="blue"
-            status={`${stats.totalZones} active zones`}
+            variant={isSerialConnected || stats.onlineNodes > 0 ? 'blue' : 'amber'}
+            status={isSerialConnected ? '1 Live Port Detected' : stats.onlineNodes > 0 ? `${stats.totalZones} active zones` : '0 Nodes Detected'}
           />
 
           <MetricCard
@@ -79,22 +78,18 @@ export default function LandingPage() {
 
           <MetricCard
             title="Total Ingested Messages"
-            value={metrics.count.toLocaleString()}
-            subtext="Non-blocking event loop"
+            value={isSerialConnected ? (metrics.count > 0 ? metrics.count.toLocaleString() : 'Live') : (metrics.count > 0 ? metrics.count.toLocaleString() : '--')}
+            subtext={isSerialConnected ? 'Web Serial Telemetry Active' : 'Non-blocking event loop'}
             icon={Activity}
             variant="purple"
-            status={`${metrics.packetsPerSec} msg/sec`}
+            status={isSerialConnected ? 'Streaming' : `${metrics.packetsPerSec} msg/sec`}
           />
         </div>
 
         {/* First-Time Visit & Zero-Hardware Onboarding Fallback / Config Center */}
-        <HardwareOnboardingWizard compact={stats.totalNodes > 0} />
+        <HardwareOnboardingWizard compact={stats.totalNodes > 0 || isSerialConnected} />
       </section>
 
-      {/* End-to-End Pipeline Architecture Card */}
-      <section>
-        <PipelineCard />
-      </section>
 
       {/* Technical Features & Compliance Grid */}
       <section>

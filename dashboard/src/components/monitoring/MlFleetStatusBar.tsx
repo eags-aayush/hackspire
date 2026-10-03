@@ -218,14 +218,6 @@ export function MlFleetStatusBar({
               </>
             )}
           </button>
-
-          <Link
-            href="/ml-demo"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold font-mono transition-all hover:scale-105 active:scale-95 shadow-sm"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>ML Testing Lab</span>
-          </Link>
         </div>
       </div>
 

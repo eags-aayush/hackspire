@@ -26,6 +26,7 @@ import {
   decodeZoneSnapshot,
 } from '@/lib/proto/telemetry';
 import { voiceAlertService } from '@/lib/voiceAlertService';
+import { downloadIncidentPdf, type IncidentReportData } from '@/lib/reports/generateIncidentPdf';
 
 export interface GatewayStatus {
   brokerConnected: boolean;
@@ -36,6 +37,31 @@ export interface GatewayStatus {
   gatewayType: string;
   topic: string;
   nodeId?: string;
+}
+
+export interface LivePortData {
+  temp: number | null;
+  hum: number | null;
+  mq4: number | null;
+  mq135: number | null;
+  water: number | null;
+  ml: number | null;
+  distCm: number | null;
+  ax: number | null;
+  ay: number | null;
+  az: number | null;
+  nodeId: string;
+  lastPacketTime: string | null;
+  rawFrame: string | null;
+}
+
+export interface LivePortPeaks {
+  temp: number;
+  hum: number;
+  mq4: number;
+  mq135: number;
+  water: number;
+  ml: number;
 }
 
 interface RealtimeContextValue {
@@ -75,6 +101,24 @@ interface RealtimeContextValue {
   lastSpokenMessage: string | null;
   edgeActuatorStates: Record<string, EdgeNodeActuatorState>;
   dispatchEdgeAlert: (params: { nodeId: string; zoneId: string; level: EdgeAlertLevel; message?: string }) => void;
+  // Serial Port Telemetry Link
+  isSerialSupported: boolean;
+  isSerialConnected: boolean;
+  connectSerialPort: (baudRate?: number) => Promise<boolean>;
+  disconnectSerialPort: () => Promise<void>;
+  livePortData: LivePortData | null;
+  livePortPeaks: LivePortPeaks;
+  // Emergency SOS Alarm Auto-Activation & Incident PDF Reporting
+  isSosAlarmActive: boolean;
+  sosAlarmReason: string | null;
+  triggerSosAlarm: (
+    reason: string,
+    telemetrySnapshot?: Partial<IncidentReportData['telemetry']>,
+    meta?: { nodeId?: string; zoneId?: string }
+  ) => void;
+  silenceSosAlarm: () => void;
+  lastIncidentReport: IncidentReportData | null;
+  downloadLatestIncidentPdf: () => void;
 }
 
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);
@@ -146,6 +190,501 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   });
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastSpokenMessage, setLastSpokenMessage] = useState<string | null>(null);
+
+  // Serial Port Telemetry Link State (Web Serial API for ESP32/Arduino)
+  const isSerialSupported = typeof navigator !== 'undefined' && 'serial' in navigator;
+  const [isSerialConnected, setIsSerialConnected] = useState(false);
+  const [livePortData, setLivePortData] = useState<LivePortData | null>(null);
+  const [livePortPeaks, setLivePortPeaks] = useState<LivePortPeaks>({
+    temp: 0,
+    hum: 0,
+    mq4: 0,
+    mq135: 0,
+    water: 500,
+    ml: 0,
+  });
+  const serialPortRef = useRef<any>(null);
+  const serialReaderRef = useRef<any>(null);
+
+  // Automatic Emergency SOS Alarm State & Cooldown
+  const [isSosAlarmActive, setIsSosAlarmActive] = useState(false);
+  const [sosAlarmReason, setSosAlarmReason] = useState<string | null>(null);
+  const [lastIncidentReport, setLastIncidentReport] = useState<IncidentReportData | null>(null);
+  const isSosSilencedByUserRef = useRef(false);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPdfDownloadTimeRef = useRef<number>(0);
+  const prevPortDataRef = useRef<LivePortData | null>(null);
+
+  const triggerSosAlarm = useCallback((
+    reason: string,
+    telemetrySnapshot?: Partial<IncidentReportData['telemetry']>,
+    meta?: { nodeId?: string; zoneId?: string }
+  ) => {
+    if (isSosSilencedByUserRef.current) return;
+    setIsSosAlarmActive(true);
+    setSosAlarmReason(reason);
+
+    // Announce emergency alert via speech synthesis
+    voiceAlertService.speak(`Emergency Alert. ${reason}. Evacuate sector immediately.`, {
+      type: 'critical',
+      force: true,
+      onStart: () => {
+        setIsSpeaking(true);
+        setLastSpokenMessage(`EMERGENCY SOS: ${reason}`);
+      },
+      onEnd: () => {
+        setIsSpeaking(false);
+      },
+    });
+
+    // Assemble comprehensive incident report capturing all values after detection
+    const activePort = prevPortDataRef.current;
+    const reportData: IncidentReportData = {
+      incidentId: `DGMS-INC-${Date.now().toString().slice(-6)}`,
+      timestamp: new Date().toISOString(),
+      reason,
+      nodeId: meta?.nodeId || activePort?.nodeId || 'NODE_01',
+      zoneId: meta?.zoneId || 'ZONE_01_LONGWALL_FACE',
+      severity: 'CRITICAL',
+      telemetry: {
+        temp: telemetrySnapshot?.temp ?? activePort?.temp ?? null,
+        hum: telemetrySnapshot?.hum ?? activePort?.hum ?? null,
+        mq4: telemetrySnapshot?.mq4 ?? activePort?.mq4 ?? null,
+        mq135: telemetrySnapshot?.mq135 ?? activePort?.mq135 ?? null,
+        water: telemetrySnapshot?.water ?? activePort?.water ?? null,
+        ml: telemetrySnapshot?.ml ?? activePort?.ml ?? null,
+        tilt: telemetrySnapshot?.tilt ?? (activePort ? +(Math.sqrt((activePort.ax || 0)**2 + (activePort.ay || 0)**2) * 5.73).toFixed(2) : null),
+        ax: telemetrySnapshot?.ax ?? activePort?.ax ?? null,
+        ay: telemetrySnapshot?.ay ?? activePort?.ay ?? null,
+        az: telemetrySnapshot?.az ?? activePort?.az ?? null,
+      },
+    };
+
+    setLastIncidentReport(reportData);
+
+    // AUTOMATIC SYSTEM REPORT PDF DOWNLOAD (throttled to avoid rapid multiple downloads)
+    const now = Date.now();
+    if (now - lastPdfDownloadTimeRef.current > 4000) {
+      lastPdfDownloadTimeRef.current = now;
+      try {
+        downloadIncidentPdf(reportData);
+      } catch (err) {
+        console.error('Failed to trigger automatic incident PDF download:', err);
+      }
+    }
+  }, []);
+
+  const silenceSosAlarm = useCallback(() => {
+    setIsSosAlarmActive(false);
+    setSosAlarmReason(null);
+    isSosSilencedByUserRef.current = true;
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+    }
+    // Allow re-arming after 20 seconds so subsequent hazards still alert
+    silenceTimeoutRef.current = setTimeout(() => {
+      isSosSilencedByUserRef.current = false;
+    }, 20000);
+  }, []);
+
+  const downloadLatestIncidentPdf = useCallback(() => {
+    if (lastIncidentReport) {
+      downloadIncidentPdf(lastIncidentReport);
+    } else {
+      const activePort = prevPortDataRef.current;
+      const onDemandReport: IncidentReportData = {
+        incidentId: `DGMS-RPT-${Date.now().toString().slice(-6)}`,
+        timestamp: new Date().toISOString(),
+        reason: sosAlarmReason || 'Manual Geotechnical Audit Report',
+        nodeId: activePort?.nodeId || 'NODE_01',
+        zoneId: 'ZONE_01_LONGWALL_FACE',
+        severity: isSosAlarmActive ? 'CRITICAL' : 'WARNING',
+        telemetry: {
+          temp: activePort?.temp ?? null,
+          hum: activePort?.hum ?? null,
+          mq4: activePort?.mq4 ?? null,
+          mq135: activePort?.mq135 ?? null,
+          water: activePort?.water ?? null,
+          ml: activePort?.ml ?? null,
+          tilt: activePort ? +(Math.sqrt((activePort.ax || 0) ** 2 + (activePort.ay || 0) ** 2) * 5.73).toFixed(2) : null,
+          ax: activePort?.ax ?? null,
+          ay: activePort?.ay ?? null,
+          az: activePort?.az ?? null,
+        },
+      };
+      downloadIncidentPdf(onDemandReport);
+    }
+  }, [lastIncidentReport, sosAlarmReason, isSosAlarmActive]);
+
+  // Process incoming JSON or structured telemetry payload from serial port
+  const processPortPayload = useCallback((parsed: any, raw: string) => {
+    const t = parseFloat(parsed.temp ?? parsed.temperature);
+    const h = parseFloat(parsed.hum ?? parsed.humidity);
+    const m4 = parseFloat(parsed.mq4 ?? parsed.mq6 ?? parsed.mq6_raw ?? parsed.gas);
+    const m135 = parseFloat(parsed.mq135 ?? parsed.co ?? parsed.co2);
+    const w = parseFloat(parsed.water ?? parsed.water_raw ?? parsed.dist_cm ?? parsed.distance);
+    const ml = parseFloat(parsed.ml ?? parsed.seismic ?? parsed.magnitude) || 0.1;
+    const ax = parseFloat(parsed.ax) || 0;
+    const ay = parseFloat(parsed.ay) || 0;
+    const az = parseFloat(parsed.az) || 1;
+    const nodeId = parsed.id || parsed.nodeId || parsed.device || 'NODE_01';
+    const nowIso = new Date().toISOString();
+
+    const newPortData: LivePortData = {
+      temp: !Number.isNaN(t) ? t : null,
+      hum: !Number.isNaN(h) ? h : null,
+      mq4: !Number.isNaN(m4) ? m4 : null,
+      mq135: !Number.isNaN(m135) ? m135 : null,
+      water: !Number.isNaN(w) ? w : null,
+      ml: !Number.isNaN(ml) ? ml : null,
+      distCm: !Number.isNaN(w) ? w : null,
+      ax,
+      ay,
+      az,
+      nodeId,
+      lastPacketTime: nowIso,
+      rawFrame: raw,
+    };
+
+    setLivePortData(newPortData);
+
+    const fireSos = (reason: string) => {
+      triggerSosAlarm(
+        reason,
+        {
+          temp: newPortData.temp,
+          hum: newPortData.hum,
+          mq4: newPortData.mq4,
+          mq135: newPortData.mq135,
+          water: newPortData.water,
+          ml: newPortData.ml,
+          tilt: +(Math.sqrt(ax * ax + ay * ay) * 5.73).toFixed(2),
+          ax,
+          ay,
+          az,
+        },
+        { nodeId, zoneId: 'ZONE_01_LONGWALL_FACE' }
+      );
+    };
+
+    // Automatic SOS Alarm Activation upon Sudden Changes or Critical Threshold Breaches
+    const prevPort = prevPortDataRef.current;
+    if (prevPort) {
+      // 1. Methane (MQ-4) Sudden Spike or Extreme Level
+      if (newPortData.mq4 != null && prevPort.mq4 != null) {
+        const deltaMq4 = newPortData.mq4 - prevPort.mq4;
+        if (deltaMq4 >= 250) {
+          fireSos(`Sudden Methane (CH₄) surge detected: +${Math.round(deltaMq4)} ppm (now ${Math.round(newPortData.mq4)} ppm)`);
+        } else if (newPortData.mq4 >= 2800) {
+          fireSos(`Critical Methane (CH₄) explosive threshold reached: ${Math.round(newPortData.mq4)} ppm`);
+        }
+      } else if (newPortData.mq4 != null && newPortData.mq4 >= 2800) {
+        fireSos(`Critical Methane (CH₄) explosive threshold reached: ${Math.round(newPortData.mq4)} ppm`);
+      }
+
+      // 2. Toxic Gas / CO (MQ-135) Sudden Surge or Extreme Level
+      if (newPortData.mq135 != null && prevPort.mq135 != null) {
+        const deltaMq135 = newPortData.mq135 - prevPort.mq135;
+        if (deltaMq135 >= 180) {
+          fireSos(`Sudden Toxic Gas (CO/CO₂) surge detected: +${Math.round(deltaMq135)} ppm (now ${Math.round(newPortData.mq135)} ppm)`);
+        } else if (newPortData.mq135 >= 1800) {
+          fireSos(`Critical Toxic Gas threshold breached: ${Math.round(newPortData.mq135)} ppm`);
+        }
+      } else if (newPortData.mq135 != null && newPortData.mq135 >= 1800) {
+        fireSos(`Critical Toxic Gas threshold breached: ${Math.round(newPortData.mq135)} ppm`);
+      }
+
+      // 3. Ambient Temperature Sudden Spike or Extreme Heat
+      if (newPortData.temp != null && prevPort.temp != null) {
+        const deltaTemp = newPortData.temp - prevPort.temp;
+        if (deltaTemp >= 3.0) {
+          fireSos(`Rapid thermal spike detected: +${deltaTemp.toFixed(1)}°C jump (now ${newPortData.temp.toFixed(1)}°C)`);
+        } else if (newPortData.temp >= 46.0) {
+          fireSos(`Extreme ambient heat threshold reached: ${newPortData.temp.toFixed(1)}°C`);
+        }
+      } else if (newPortData.temp != null && newPortData.temp >= 46.0) {
+        fireSos(`Extreme ambient heat threshold reached: ${newPortData.temp.toFixed(1)}°C`);
+      }
+
+      // 4. Water Level Inrush Sudden Change
+      if (newPortData.water != null && prevPort.water != null) {
+        const deltaWater = Math.abs(newPortData.water - prevPort.water);
+        if (deltaWater >= 20.0) {
+          fireSos(`Sudden water level displacement detected: Δ${deltaWater.toFixed(1)} cm (level: ${newPortData.water.toFixed(1)} cm)`);
+        } else if (newPortData.water < 25.0) {
+          fireSos(`Critical water inrush / flood proximity alert: ${newPortData.water.toFixed(1)} cm clearance`);
+        }
+      } else if (newPortData.water != null && newPortData.water < 25.0) {
+        fireSos(`Critical water inrush / flood proximity alert: ${newPortData.water.toFixed(1)} cm clearance`);
+      }
+
+      // 5. Sudden Seismic Acceleration Jump
+      if (newPortData.ml != null && prevPort.ml != null) {
+        const deltaMl = newPortData.ml - prevPort.ml;
+        if (deltaMl >= 0.35) {
+          fireSos(`Sudden seismic tremor acceleration detected: +${deltaMl.toFixed(2)} ML (now ${newPortData.ml.toFixed(2)} ML)`);
+        } else if (newPortData.ml >= 1.2) {
+          fireSos(`High-magnitude seismic vibration detected: ${newPortData.ml.toFixed(2)} ML`);
+        }
+      } else if (newPortData.ml != null && newPortData.ml >= 1.2) {
+        fireSos(`High-magnitude seismic vibration detected: ${newPortData.ml.toFixed(2)} ML`);
+      }
+
+      // 6. Sudden Strata Tilt / Accelerometer Shift
+      const prevTilt = Math.sqrt((prevPort.ax || 0) ** 2 + (prevPort.ay || 0) ** 2) * 5.73;
+      const currTilt = Math.sqrt(ax * ax + ay * ay) * 5.73;
+      const deltaTilt = Math.abs(currTilt - prevTilt);
+      if (deltaTilt >= 1.5) {
+        fireSos(`Sudden strata shear tilt displacement: Δ${deltaTilt.toFixed(1)}° shift`);
+      }
+    } else {
+      // First incoming reading critical safety checks
+      if (newPortData.mq4 != null && newPortData.mq4 >= 2800) {
+        fireSos(`Critical Methane (CH₄) explosive threshold reached: ${Math.round(newPortData.mq4)} ppm`);
+      } else if (newPortData.mq135 != null && newPortData.mq135 >= 1800) {
+        fireSos(`Critical Toxic Gas threshold breached: ${Math.round(newPortData.mq135)} ppm`);
+      } else if (newPortData.temp != null && newPortData.temp >= 46.0) {
+        fireSos(`Extreme ambient heat threshold reached: ${newPortData.temp.toFixed(1)}°C`);
+      } else if (newPortData.water != null && newPortData.water < 25.0) {
+        fireSos(`Critical water inrush / flood proximity alert: ${newPortData.water.toFixed(1)} cm clearance`);
+      } else if (newPortData.ml != null && newPortData.ml >= 1.2) {
+        fireSos(`High-magnitude seismic vibration detected: ${newPortData.ml.toFixed(2)} ML`);
+      }
+    }
+
+    prevPortDataRef.current = newPortData;
+
+    // Update real-time peak readings
+    setLivePortPeaks(prev => ({
+      temp: !Number.isNaN(t) ? Math.max(prev.temp, t) : prev.temp,
+      hum: !Number.isNaN(h) ? Math.max(prev.hum, h) : prev.hum,
+      mq4: !Number.isNaN(m4) ? Math.max(prev.mq4, m4) : prev.mq4,
+      mq135: !Number.isNaN(m135) ? Math.max(prev.mq135, m135) : prev.mq135,
+      water: !Number.isNaN(w) ? Math.min(prev.water, w) : prev.water,
+      ml: !Number.isNaN(ml) ? Math.max(prev.ml, ml) : prev.ml,
+    }));
+
+    // Ingest into readings and nodeStatuses so whole dashboard updates in real time!
+    const zoneId = 'ZONE_01_LONGWALL_FACE';
+    setActiveZones(prev => (prev.includes(zoneId) ? prev : [...prev, zoneId]));
+
+    setNodeStatuses(prev => ({
+      ...prev,
+      [zoneId]: {
+        ...(prev[zoneId] || {}),
+        [nodeId]: {
+          nodeId,
+          zoneId,
+          status: 'online',
+          lastSeenAt: nowIso,
+          lastSequenceNumber: Date.now() % 100000,
+          gapCount: 0,
+        },
+      },
+    }));
+
+    setReadings(prev => {
+      const zoneReads = prev[zoneId] || {};
+      const nodeReads = zoneReads[nodeId] || {};
+      const updatedNodeReads = { ...nodeReads };
+
+      if (!Number.isNaN(t)) {
+        updatedNodeReads.temperature = {
+          nodeId,
+          zoneId,
+          sensorType: 'temperature',
+          value: t,
+          unit: '°C',
+          timestamp: nowIso,
+        };
+      }
+      if (!Number.isNaN(h)) {
+        updatedNodeReads.humidity = {
+          nodeId,
+          zoneId,
+          sensorType: 'humidity',
+          value: h,
+          unit: '%',
+          timestamp: nowIso,
+        };
+      }
+      if (!Number.isNaN(m4)) {
+        updatedNodeReads.gas = {
+          nodeId,
+          zoneId,
+          sensorType: 'gas',
+          value: m4,
+          unit: 'ppm',
+          timestamp: nowIso,
+        };
+      }
+      if (!Number.isNaN(w)) {
+        updatedNodeReads.water = {
+          nodeId,
+          zoneId,
+          sensorType: 'water',
+          value: w,
+          unit: 'cm',
+          timestamp: nowIso,
+        };
+        updatedNodeReads.displacement = {
+          nodeId,
+          zoneId,
+          sensorType: 'displacement',
+          value: w,
+          unit: 'cm',
+          timestamp: nowIso,
+        };
+      }
+      const tiltVal = +(Math.sqrt(ax * ax + ay * ay) * 5.73).toFixed(2);
+      updatedNodeReads.tilt = {
+        nodeId,
+        zoneId,
+        sensorType: 'tilt',
+        value: tiltVal,
+        unit: '°',
+        timestamp: nowIso,
+      };
+
+      return {
+        ...prev,
+        [zoneId]: {
+          ...zoneReads,
+          [nodeId]: updatedNodeReads,
+        },
+      };
+    });
+  }, [triggerSosAlarm]);
+
+  // Process text lines (e.g. from Arduino/ESP32 Serial.printf lines)
+  const processPortLine = useCallback((line: string) => {
+    const tempMatch = line.match(/Temp:\s*([\d.]+)/i);
+    const humMatch = line.match(/Hum:\s*([\d.]+)/i);
+    const distMatch = line.match(/Distance:\s*([\d.]+)/i);
+    const mqMatch = line.match(/MQ\d*\s*raw:\s*([\d.]+)/i) || line.match(/Gas:\s*([\d.]+)/i);
+    const waterMatch = line.match(/Water\s*raw:\s*([\d.]+)/i);
+    const devMatch = line.match(/Device:\s*([A-Za-z0-9_-]+)/i);
+
+    if (tempMatch || humMatch || distMatch || mqMatch) {
+      const payload: any = {};
+      if (tempMatch) payload.temp = parseFloat(tempMatch[1]);
+      if (humMatch) payload.hum = parseFloat(humMatch[1]);
+      if (distMatch) payload.dist_cm = parseFloat(distMatch[1]);
+      if (mqMatch) payload.mq4 = parseFloat(mqMatch[1]);
+      if (waterMatch) payload.water = parseFloat(waterMatch[1]);
+      if (devMatch) payload.id = devMatch[1];
+      processPortPayload(payload, line);
+      return;
+    }
+
+    // CSV format: NODE_01,34.5,62.0,1200,450,140
+    if (line.includes(',')) {
+      const parts = line.split(',').map(s => s.trim());
+      if (parts.length >= 3 && !Number.isNaN(parseFloat(parts[1]))) {
+        processPortPayload(
+          {
+            id: parts[0],
+            temp: parseFloat(parts[1]),
+            hum: parseFloat(parts[2]),
+            mq4: parts[3] ? parseFloat(parts[3]) : undefined,
+            water: parts[4] ? parseFloat(parts[4]) : undefined,
+          },
+          line
+        );
+      }
+    }
+  }, [processPortPayload]);
+
+  // Connect Web Serial Port (baud: 115200 or 9600)
+  const connectSerialPort = useCallback(async (baudRate = 115200) => {
+    if (typeof navigator === 'undefined' || !('serial' in navigator)) {
+      alert('Web Serial API is not supported in this browser. Please use Google Chrome, Microsoft Edge, or a Chromium-based browser to connect directly via USB.');
+      return false;
+    }
+    try {
+      const port = await (navigator as any).serial.requestPort();
+      await port.open({ baudRate });
+      serialPortRef.current = port;
+      setIsSerialConnected(true);
+
+      const textDecoder = new (window as any).TextDecoderStream();
+      port.readable.pipeTo(textDecoder.writable);
+      const reader = textDecoder.readable.getReader();
+      serialReaderRef.current = reader;
+
+      // Start asynchronous read loop
+      (async () => {
+        let buffer = '';
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (value) {
+              buffer += value;
+              // Check for JSON: {...}
+              let s = buffer.indexOf('{');
+              let e = buffer.indexOf('}');
+              while (s !== -1 && e !== -1 && e > s) {
+                const jsonChunk = buffer.substring(s, e + 1);
+                try {
+                  const parsed = JSON.parse(jsonChunk);
+                  processPortPayload(parsed, jsonChunk);
+                } catch {}
+                buffer = buffer.substring(e + 1);
+                s = buffer.indexOf('{');
+                e = buffer.indexOf('}');
+              }
+
+              // Check for lines
+              const lines = buffer.split('\n');
+              if (lines.length > 1) {
+                buffer = lines.pop() || '';
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (trimmed) {
+                    processPortLine(trimmed);
+                  }
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Serial reader loop ended:', err);
+        } finally {
+          setIsSerialConnected(false);
+          serialPortRef.current = null;
+          serialReaderRef.current = null;
+        }
+      })();
+
+      return true;
+    } catch (err: any) {
+      if (err.name !== 'NotFoundError') {
+        console.error('Serial connection error:', err);
+      }
+      setIsSerialConnected(false);
+      return false;
+    }
+  }, [processPortPayload, processPortLine]);
+
+  // Disconnect Web Serial Port
+  const disconnectSerialPort = useCallback(async () => {
+    try {
+      if (serialReaderRef.current) {
+        await serialReaderRef.current.cancel();
+      }
+      if (serialPortRef.current) {
+        await serialPortRef.current.close();
+      }
+    } catch (e) {
+      console.warn('Error closing port:', e);
+    } finally {
+      serialReaderRef.current = null;
+      serialPortRef.current = null;
+      setIsSerialConnected(false);
+      setLivePortData(null);
+    }
+  }, []);
 
   const toggleVoiceAlerts = useCallback(() => {
     setVoiceAlertsEnabled(prev => {
@@ -1122,6 +1661,42 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
           // Check threshold alert triggers
           const severity = getSensorSeverity(r.sensorType, r.value);
+
+          // Automatic SOS Alarm Activation upon Sudden Changes or Critical Threshold Breaches
+          const prevReading = prev[r.zoneId]?.[r.nodeId]?.[r.sensorType];
+          const nodeSnap = {
+            temp: r.sensorType === 'temperature' ? r.value : prev[r.zoneId]?.[r.nodeId]?.temperature?.value ?? null,
+            hum: r.sensorType === 'humidity' ? r.value : prev[r.zoneId]?.[r.nodeId]?.humidity?.value ?? null,
+            mq4: (r.sensorType === 'gas' || r.sensorType === 'ch4') ? r.value : prev[r.zoneId]?.[r.nodeId]?.gas?.value ?? null,
+            mq135: r.sensorType === 'co' ? r.value : null,
+            water: (r.sensorType === 'water' || r.sensorType === 'displacement') ? r.value : prev[r.zoneId]?.[r.nodeId]?.water?.value ?? null,
+            ml: r.sensorType === 'seismic' ? r.value : null,
+            tilt: r.sensorType === 'tilt' ? r.value : prev[r.zoneId]?.[r.nodeId]?.tilt?.value ?? null,
+            ax: null,
+            ay: null,
+            az: null,
+          };
+          const nodeMeta = { nodeId: r.nodeId, zoneId: r.zoneId };
+
+          if (prevReading && prevReading.value != null && r.value != null) {
+            const diff = r.value - prevReading.value;
+            const absDiff = Math.abs(diff);
+
+            if ((r.sensorType === 'gas' || r.sensorType === 'ch4') && (diff >= 250 || r.value >= 2800)) {
+              triggerSosAlarm(`Sudden gas surge at ${r.nodeId}: ${r.value} ${r.unit} (+${Math.round(diff)})`, nodeSnap, nodeMeta);
+            } else if (r.sensorType === 'temperature' && (diff >= 3.0 || r.value >= 46)) {
+              triggerSosAlarm(`Sudden temperature jump at ${r.nodeId}: ${r.value} °C (+${diff.toFixed(1)} °C)`, nodeSnap, nodeMeta);
+            } else if ((r.sensorType === 'water' || r.sensorType === 'displacement') && (absDiff >= 20 || r.value < 25)) {
+              triggerSosAlarm(`Sudden water level displacement at ${r.nodeId}: ${r.value} ${r.unit}`, nodeSnap, nodeMeta);
+            } else if (r.sensorType === 'tilt' && absDiff >= 1.5) {
+              triggerSosAlarm(`Sudden strata tilt shift at ${r.nodeId}: Δ${absDiff.toFixed(1)}°`, nodeSnap, nodeMeta);
+            } else if (r.sensorType === 'seismic' && (diff >= 0.35 || r.value >= 1.2)) {
+              triggerSosAlarm(`Sudden seismic tremor at ${r.nodeId}: ${r.value} ML`, nodeSnap, nodeMeta);
+            }
+          } else if (severity === 'critical') {
+            triggerSosAlarm(`Critical emergency reading at ${r.nodeId}: ${r.sensorType} reached ${r.value} ${r.unit}`, nodeSnap, nodeMeta);
+          }
+
           if (severity === 'critical' || severity === 'warning') {
             const meta = SENSOR_CONFIGS[r.sensorType];
             newAlerts.push({
@@ -1363,7 +1938,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       socket.off('edge_alert:ack');
       socket.off('edge_alert:state_batch');
     };
-  }, [socket, dispatchMlPrediction]);
+  }, [socket, dispatchMlPrediction, triggerSosAlarm]);
 
   const stats = useMemo(() => {
     let totalNodes = 0;
@@ -1609,6 +2184,18 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       lastSpokenMessage,
       edgeActuatorStates,
       dispatchEdgeAlert,
+      isSerialSupported,
+      isSerialConnected,
+      connectSerialPort,
+      disconnectSerialPort,
+      livePortData,
+      livePortPeaks,
+      isSosAlarmActive,
+      sosAlarmReason,
+      triggerSosAlarm,
+      silenceSosAlarm,
+      lastIncidentReport,
+      downloadLatestIncidentPdf,
     }),
     [
       socket,
@@ -1637,6 +2224,18 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       lastSpokenMessage,
       edgeActuatorStates,
       dispatchEdgeAlert,
+      isSerialSupported,
+      isSerialConnected,
+      connectSerialPort,
+      disconnectSerialPort,
+      livePortData,
+      livePortPeaks,
+      isSosAlarmActive,
+      sosAlarmReason,
+      triggerSosAlarm,
+      silenceSosAlarm,
+      lastIncidentReport,
+      downloadLatestIncidentPdf,
     ]
   );
 

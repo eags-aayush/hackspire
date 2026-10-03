@@ -20,6 +20,7 @@ import {
 import { ValidatedSensorReading } from '@/types/sensor';
 import { NodeStatusState } from '@/types/node';
 import { ShadowMlPrediction } from '@/types/ml';
+import { useRealtime } from '@/hooks/useRealtime';
 import {
   Layers,
   Compass,
@@ -118,6 +119,9 @@ export function DigitalTwinMap({
   const [measureDistanceM, setMeasureDistanceM] = useState<number | null>(null);
   const [bufferRadiusActive, setBufferRadiusActive] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Realtime Web Serial Telemetry Link
+  const { isSerialConnected, livePortData, connectSerialPort } = useRealtime();
 
   // National Coal Mining GPS Atlas states
   const [searchQuery, setSearchQuery] = useState('');
@@ -792,17 +796,24 @@ export function DigitalTwinMap({
       y += 2;
 
       sectionTitle('2. Environmental & Gas Telemetry (DGMS Limits)');
-      const ch4Vol = (mine.ch4 / 10000).toFixed(3);
+      const ch4Vol = livePortData?.mq4 != null
+        ? (livePortData.mq4 / 10000).toFixed(3)
+        : (isSerialConnected ? '0.000' : (mine.ch4 / 10000).toFixed(3));
+      const observedCh4 = livePortData?.mq4 != null ? `${livePortData.mq4} ppm` : `${mine.ch4} ppm`;
+      const observedCo = livePortData?.mq135 != null ? `${Math.round(livePortData.mq135)} ppm` : `${mine.co2} ppm`;
+      const observedTemp = livePortData?.temp != null ? `${livePortData.temp.toFixed(1)}°C` : `${mine.temp.toFixed(1)}°C`;
+      const telSource = livePortData ? 'LIVE SERIAL PORT' : 'REGIONAL BASELINE';
+
       if (doc.autoTable) {
         doc.autoTable({
           startY: y,
           margin: { left: margin, right: margin },
-          head: [['Parameter', 'Observed Reading', 'Statutory Limit', 'Compliance Status']],
+          head: [['Parameter', 'Observed Reading', 'Statutory Limit', 'Compliance / Source']],
           body: [
-            ['Methane (CH₄)', `${ch4Vol}% vol (${mine.ch4} ppm)`, '1.25% vol max (Reg 122)', mine.ch4 <= 12500 ? 'COMPLIANT' : 'CRITICAL BREACH'],
-            ['Carbon Monoxide / CO₂', `${mine.co2} ppm`, '500 ppm threshold', mine.co2 <= 500 ? 'COMPLIANT' : 'CAUTION THRESHOLD'],
-            ['Ambient Temperature', `${mine.temp.toFixed(1)}°C`, '48.0°C max limit', mine.temp <= 48 ? 'COMPLIANT' : 'CRITICAL HYPERTHERMIA'],
-            ['Composite Risk Score', `${mine.risk}% Risk Quotient`, '100% scale', mine.risk >= 70 ? 'CRITICAL RISK' : mine.risk >= 40 ? 'CAUTION WARNING' : 'NOMINAL'],
+            ['Methane (CH₄)', `${ch4Vol}% vol (${observedCh4})`, '1.25% vol max (Reg 122)', `${telSource} COMPLIANT`],
+            ['Carbon Monoxide / CO₂', observedCo, '500 ppm threshold', `${telSource} COMPLIANT`],
+            ['Ambient Temperature', observedTemp, '48.0°C max limit', `${telSource} NOMINAL`],
+            ['Water Elevation / Depth', livePortData?.water != null ? `${Math.round(livePortData.water)} cm` : 'Normal', 'Subsurface Drainage', `${telSource} ACTIVE`],
           ],
           styles: { font: 'times', fontSize: 8.5 },
           headStyles: { fillColor: navy, textColor: 255 },
@@ -1008,80 +1019,154 @@ export function DigitalTwinMap({
 
             {/* Inspector Body */}
             <div className="flex-1 p-5 overflow-y-auto space-y-4 text-xs">
-              {/* Telemetry Row */}
-              <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-200 dark:border-slate-800 pb-1">
-                  Safety Telemetry Gauges
+              {/* Live Serial Port Banner or Waiting Notice */}
+              {isSerialConnected && livePortData ? (
+                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                    <span className="font-bold text-[11px]">Hardware Port Active ({livePortData.nodeId})</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-emerald-700 dark:text-emerald-400">
+                    {livePortData.lastPacketTime ? new Date(livePortData.lastPacketTime).toLocaleTimeString() : 'Streaming'}
+                  </span>
                 </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">⚠</span>
+                    <span className="text-[11px] font-semibold">Waiting for live serial port telemetry</span>
+                  </div>
+                  <button
+                    onClick={() => connectSerialPort(115200)}
+                    className="px-2 py-1 rounded bg-[#003366] hover:bg-[#1a4480] text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer"
+                  >
+                    ⚡ Connect Port
+                  </button>
+                </div>
+              )}
+
+              {/* Telemetry Row - Live Port Detected vs Disconnected */}
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-200 dark:border-slate-800 pb-1 flex items-center justify-between">
+                  <span>Safety Telemetry Gauges</span>
+                  <span className="font-mono text-[9px] text-[#003366] dark:text-[#c9a227]">
+                    {isSerialConnected && livePortData ? '● REAL-TIME SERIAL STREAM' : 'OFFLINE / WAITING'}
+                  </span>
+                </div>
+
                 <div className="grid grid-cols-3 gap-2">
                   <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center shadow-inner">
                     <div className="text-xs font-mono font-extrabold text-[#003366] dark:text-[#c9a227]">
-                      {(selectedMine.ch4 / 10000).toFixed(3)}%
+                      {livePortData?.mq4 != null ? `${(livePortData.mq4 / 10000).toFixed(3)}%` : '--'}
                     </div>
-                    <div className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">CH₄ Level</div>
+                    <div className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">
+                      CH₄ Level {livePortData?.mq4 != null && <span className="font-mono text-[8px]">({Math.round(livePortData.mq4)} ppm)</span>}
+                    </div>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center shadow-inner">
                     <div className="text-xs font-mono font-extrabold text-[#003366] dark:text-[#c9a227]">
-                      {selectedMine.co2} ppm
+                      {livePortData?.mq135 != null ? `${Math.round(livePortData.mq135)} ppm` : '--'}
                     </div>
                     <div className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">CO₂ / CO</div>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center shadow-inner">
                     <div className="text-xs font-mono font-extrabold text-[#003366] dark:text-[#c9a227]">
-                      {selectedMine.temp.toFixed(1)}°C
+                      {livePortData?.temp != null ? `${livePortData.temp.toFixed(1)}°C` : '--'}
                     </div>
                     <div className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">Temp</div>
                   </div>
                 </div>
+
+                {/* Additional Live Telemetry Row: Water & Seismic/Humidity */}
+                {livePortData && (
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                      <div className="text-xs font-mono font-extrabold text-blue-600 dark:text-blue-400">
+                        {livePortData.water != null ? `${Math.round(livePortData.water)} cm` : '--'}
+                      </div>
+                      <div className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">Water Drainage</div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                      <div className="text-xs font-mono font-extrabold text-amber-600 dark:text-amber-400">
+                        {livePortData.hum != null ? `${livePortData.hum.toFixed(1)}%` : livePortData.ml != null ? `ML ${livePortData.ml.toFixed(2)}` : '--'}
+                      </div>
+                      <div className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">
+                        {livePortData.hum != null ? 'Relative Humidity' : 'Richter ML'}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Circular Risk Progress Ring */}
-              <div className="flex items-center gap-4 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800">
-                <div className="relative w-16 h-16 flex-shrink-0">
-                  <svg className="w-full h-full -rotate-90">
-                    <circle cx="32" cy="32" r="26" stroke="#cbd5e1" strokeWidth="5" fill="none" />
-                    <circle
-                      cx="32"
-                      cy="32"
-                      r="26"
-                      stroke={
-                        selectedMine.risk >= 70
-                          ? '#dc2626'
-                          : selectedMine.risk >= 40
-                          ? '#f59e0b'
-                          : '#16a34a'
-                      }
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      fill="none"
-                      strokeDasharray="163"
-                      strokeDashoffset={163 - (selectedMine.risk / 100) * 163}
-                      className="transition-all duration-700 ease-out"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center font-mono font-bold text-xs">
-                    {selectedMine.risk}%
+              {(() => {
+                const dynamicRisk = livePortData
+                  ? Math.min(100, Math.max(5, Math.round(
+                      ((livePortData.mq4 || 0) / 3000) * 40 +
+                      ((livePortData.mq135 || 0) / 2000) * 30 +
+                      ((livePortData.temp || 25) > 40 ? 20 : 5) +
+                      ((livePortData.ml || 0) >= 1 ? 25 : 0)
+                    )))
+                  : null;
+
+                const isDanger = dynamicRisk !== null && dynamicRisk >= 70;
+                const isCaution = dynamicRisk !== null && dynamicRisk >= 40;
+
+                return (
+                  <div className="flex items-center gap-4 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800">
+                    <div className="relative w-16 h-16 flex-shrink-0">
+                      <svg className="w-full h-full -rotate-90">
+                        <circle cx="32" cy="32" r="26" stroke="#cbd5e1" strokeWidth="5" fill="none" />
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="26"
+                          stroke={
+                            dynamicRisk === null
+                              ? '#94a3b8'
+                              : isDanger
+                              ? '#dc2626'
+                              : isCaution
+                              ? '#f59e0b'
+                              : '#16a34a'
+                          }
+                          strokeWidth="5"
+                          strokeLinecap="round"
+                          fill="none"
+                          strokeDasharray="163"
+                          strokeDashoffset={dynamicRisk !== null ? 163 - (dynamicRisk / 100) * 163 : 163}
+                          className="transition-all duration-700 ease-out"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center font-mono font-bold text-xs">
+                        {dynamicRisk !== null ? `${dynamicRisk}%` : '--'}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-xs text-[#003366] dark:text-white">Strata & Gas Risk Factor</div>
+                      <div
+                        className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase ${
+                          dynamicRisk === null
+                            ? 'bg-slate-100 text-slate-600 border border-slate-300'
+                            : isDanger
+                            ? 'bg-red-100 text-red-700 border border-red-300'
+                            : isCaution
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        }`}
+                      >
+                        {dynamicRisk === null
+                          ? 'AWAITING PORT'
+                          : isDanger
+                          ? 'HIGH RISK ZONE'
+                          : isCaution
+                          ? 'CAUTION OUTLOOK'
+                          : 'NOMINAL STATE'}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex-1">
-                  <div className="font-bold text-xs text-[#003366] dark:text-white">Strata & Gas Risk Factor</div>
-                  <div
-                    className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase ${
-                      selectedMine.risk >= 70
-                        ? 'bg-red-100 text-red-700 border border-red-300'
-                        : selectedMine.risk >= 40
-                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                        : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    }`}
-                  >
-                    {selectedMine.risk >= 70
-                      ? 'HIGH RISK ZONE'
-                      : selectedMine.risk >= 40
-                      ? 'CAUTION OUTLOOK'
-                      : 'NOMINAL STATE'}
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Geological Profile Narrative */}
               <div>

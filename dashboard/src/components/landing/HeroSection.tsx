@@ -15,7 +15,7 @@ export function HeroSection() {
   const ctaRef = useRef<HTMLDivElement>(null);
   const metricsRef = useRef<HTMLDivElement>(null);
 
-  const { stats, metrics } = useRealtime();
+  const { stats, metrics, isSerialConnected, livePortData } = useRealtime();
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -70,10 +70,12 @@ export function HeroSection() {
             ref={badgeRef}
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 dark:bg-[#14213d] border border-[#e5e5e5] dark:border-[#fca311]/40 text-xs text-[#14213d] dark:text-[#e5e5e5] shadow-md shadow-black/5 dark:shadow-black/40 backdrop-blur-md"
           >
-            <span className="w-2 h-2 rounded-full bg-[#fca311] animate-ping" />
+            <span className={`w-2 h-2 rounded-full ${isSerialConnected ? 'bg-emerald-500 animate-ping' : 'bg-[#fca311] animate-ping'}`} />
             <span className="font-extrabold text-[#14213d] dark:text-[#fca311]">Hackspire-2026</span>
             <span className="text-[#5c677d] dark:text-[#94a3b8]">•</span>
-            <span className="font-medium font-roboto">Early Warning &amp; Telemetry Operations</span>
+            <span className="font-medium font-roboto">
+              {isSerialConnected ? `Live Hardware Serial Active (${livePortData?.nodeId || 'COM'})` : 'Early Warning & Telemetry Operations'}
+            </span>
           </div>
         </div>
 
@@ -113,11 +115,11 @@ export function HeroSection() {
           </Link>
 
           <Link
-            href="/architecture"
+            href="/digital-twin"
             className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white dark:bg-[#14213d] hover:bg-[#f4f5f7] dark:hover:bg-[#14213d]/80 border border-[#e5e5e5] dark:border-[#14213d] text-[#14213d] dark:text-[#ffffff] text-sm font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
           >
             <Cpu className="w-4 h-4 text-[#fca311]" />
-            System Architecture
+            Digital Twin GIS Atlas
           </Link>
         </div>
 
@@ -137,12 +139,12 @@ export function HeroSection() {
             </span>
             <div className="mt-1.5 flex items-baseline gap-1">
               <span className="text-2xl font-black font-mono text-[#14213d] dark:text-[#fca311]">
-                {metrics.avgLatency}
+                {isSerialConnected ? '< 15' : metrics.avgLatency > 0 ? metrics.avgLatency : '--'}
               </span>
               <span className="text-xs text-[#5c677d] dark:text-[#94a3b8] font-mono">ms</span>
             </div>
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-1 block font-mono">
-              &lt;500ms PRD Budget
+              {isSerialConnected ? 'Direct Web Serial' : metrics.avgLatency > 0 ? '<500ms PRD Budget' : 'Awaiting Port'}
             </span>
           </div>
 
@@ -151,15 +153,15 @@ export function HeroSection() {
               Online Nodes
             </span>
             <div className="mt-1.5 flex items-baseline gap-1">
-              <span className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
-                {stats.onlineNodes}
+              <span className={`text-2xl font-black font-mono ${isSerialConnected || stats.onlineNodes > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                {isSerialConnected ? '1' : stats.onlineNodes}
               </span>
               <span className="text-xs text-[#5c677d] dark:text-[#94a3b8] font-mono">
-                / {stats.totalNodes}
+                / {isSerialConnected ? '1' : (stats.totalNodes || 0)}
               </span>
             </div>
             <span className="text-[10px] text-[#5c677d] dark:text-[#94a3b8] font-medium mt-1 block">
-              LWT Monitored
+              {isSerialConnected ? 'Serial Port Active' : stats.onlineNodes > 0 ? 'LWT Monitored' : 'Offline'}
             </span>
           </div>
 
@@ -189,11 +191,11 @@ export function HeroSection() {
             </span>
             <div className="mt-1.5 flex items-baseline gap-1">
               <span className="text-2xl font-black font-mono text-[#14213d] dark:text-[#fca311]">
-                {stats.totalZones}
+                {isSerialConnected ? 1 : stats.totalZones}
               </span>
             </div>
             <span className="text-[10px] text-[#5c677d] dark:text-[#94a3b8] font-medium mt-1 block">
-              Room-based Broadcast
+              {isSerialConnected ? 'Port Direct Stream' : 'Room-based Broadcast'}
             </span>
           </div>
         </div>

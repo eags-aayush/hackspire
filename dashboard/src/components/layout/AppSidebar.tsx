@@ -13,8 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Terminal,
-  Server,
-  BrainCircuit,
   Globe2,
   X,
   PanelLeft,
@@ -83,21 +81,6 @@ export function AppSidebar() {
       badge: 'PRD §8',
       badgeColor: 'bg-[#14213d]/15 text-[#14213d] dark:text-[#fca311] border-[#14213d]/30 dark:border-[#fca311]/30',
       description: 'Time-series query interface',
-    },
-    {
-      label: 'System Architecture',
-      href: '/architecture',
-      icon: Network,
-      badge: null,
-      description: 'Mesh to dashboard topology',
-    },
-    {
-      label: 'ML Testing Lab',
-      href: '/ml-demo',
-      icon: BrainCircuit,
-      badge: 'Phase 6',
-      badgeColor: 'bg-[#fca311]/15 text-[#fca311] border-[#fca311]/40',
-      description: 'Model inference & drift sandbox',
     },
   ];
 
@@ -237,34 +220,6 @@ export function AppSidebar() {
         </div>
 
         {renderNavList(false)}
-
-        {/* Pipeline Quick Info */}
-        {!collapsed && (
-          <div className="p-3 mx-2.5 mb-3 rounded-xl bg-[#f4f5f7] dark:bg-[#14213d]/50 border border-[#e5e5e5] dark:border-[#14213d] text-[11px] space-y-2 shadow-sm min-w-0">
-            <div className="flex items-center gap-2 text-[#14213d] dark:text-white font-bold truncate">
-              <Server className="w-3.5 h-3.5 text-[#fca311] shrink-0" />
-              <span className="truncate">Ingestion Pipeline</span>
-            </div>
-            <p className="text-[#5c677d] dark:text-[#94a3b8] text-[10px] leading-relaxed line-clamp-2">
-              MQTT QoS 1 • EMQX • NestJS EventBus • Socket.IO Gateway
-            </p>
-            <div className="pt-1.5 border-t border-[#e5e5e5] dark:border-[#14213d]/60 space-y-1 text-[10px] font-mono">
-              <div className="flex items-center justify-between">
-                <span className="text-[#5c677d] dark:text-[#94a3b8]">Protocol</span>
-                <span className="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                  Protobuf v3
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#5c677d] dark:text-[#94a3b8]">Saved Bandwidth</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
-                  ~{metrics.estimatedBandwidthSavedPercent || 80}%
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Collapse toggle button at bottom */}
         <div className="p-2 border-t border-[#e5e5e5] dark:border-[#14213d]/80 flex items-center justify-between min-w-0">

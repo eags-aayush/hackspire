@@ -6,7 +6,7 @@ import { getLatencyRating } from '@/lib/utils';
 import { Activity, Radio, AlertTriangle, ShieldCheck, Binary } from 'lucide-react';
 
 export function LiveStatusBar() {
-  const { metrics, stats, isConnected, activeZones, readings, nodeStatuses } = useRealtime();
+  const { metrics, stats, isConnected, isSerialConnected, activeZones, readings, nodeStatuses } = useRealtime();
   const latencyRating = getLatencyRating(metrics.avgLatency);
 
   const displayZones = useMemo(() => {
@@ -17,6 +17,8 @@ export function LiveStatusBar() {
       .sort();
   }, [activeZones, readings, nodeStatuses]);
 
+  const isLive = isSerialConnected || isConnected;
+
   return (
     <div className="h-8 bg-white dark:bg-[#000000] border-t border-[#e5e5e5] dark:border-[#14213d]/80 px-3 sm:px-4 flex items-center justify-between text-[11px] text-[#5c677d] dark:text-[#94a3b8] font-mono select-none z-20 transition-colors duration-300 min-w-0 overflow-hidden">
       {/* Left: Pipeline Throughput */}
@@ -24,13 +26,13 @@ export function LiveStatusBar() {
         <div className="flex items-center gap-1.5 shrink-0">
           <span
             className={`w-2 h-2 rounded-full ${
-              isConnected
+              isLive
                 ? 'bg-emerald-500 dark:bg-emerald-400 animate-pulse'
-                : 'bg-red-500'
+                : 'bg-slate-400'
             }`}
           />
           <span className="font-bold text-[#14213d] dark:text-[#e5e5e5] text-[10px] sm:text-[11px]">
-            {isConnected ? 'BROKER ONLINE' : 'BROKER OFFLINE'}
+            {isSerialConnected ? 'PORT ONLINE' : isConnected ? 'BROKER ONLINE' : 'DISCONNECTED'}
           </span>
         </div>
 
@@ -45,19 +47,21 @@ export function LiveStatusBar() {
         <div className="hidden md:flex items-center gap-1 shrink-0">
           <span>Ingested:</span>
           <span className="text-[#14213d] dark:text-[#e5e5e5] font-bold">
-            {metrics.count.toLocaleString()}
+            {metrics.count > 0 ? metrics.count.toLocaleString() : isSerialConnected ? '1+' : '--'}
           </span>
         </div>
 
         <div className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 font-bold shrink-0">
           <Binary className="w-3 h-3 text-blue-500" />
-          <span>Protobuf:</span>
+          <span>Stream:</span>
           <span className="text-[#14213d] dark:text-white font-mono font-bold">
-            {metrics.lastPacketBytes ? `${metrics.lastPacketBytes} B` : '24 B'}
+            {metrics.lastPacketBytes ? `${metrics.lastPacketBytes} B` : isSerialConnected ? 'WebSerial (115200)' : '--'}
           </span>
-          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold">
-            (-{metrics.estimatedBandwidthSavedPercent || 80}%)
-          </span>
+          {metrics.estimatedBandwidthSavedPercent ? (
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold">
+              (-{metrics.estimatedBandwidthSavedPercent}%)
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -68,12 +72,14 @@ export function LiveStatusBar() {
         </span>
         <div className="flex items-center gap-1">
           <span className="text-[10px] sm:text-[11px]">Avg:</span>
-          <span className={`font-bold ${latencyRating.color}`}>
-            {metrics.avgLatency}ms
+          <span className={`font-bold ${isSerialConnected ? 'text-emerald-600 dark:text-emerald-400' : latencyRating.color}`}>
+            {isSerialConnected ? '< 15ms' : metrics.avgLatency > 0 ? `${metrics.avgLatency}ms` : '--'}
           </span>
-          <span className="text-[#5c677d] dark:text-[#94a3b8] hidden sm:inline text-[10px]">
-            (Peak: {metrics.maxLatency}ms)
-          </span>
+          {metrics.maxLatency > 0 && (
+            <span className="text-[#5c677d] dark:text-[#94a3b8] hidden sm:inline text-[10px]">
+              (Peak: {metrics.maxLatency}ms)
+            </span>
+          )}
         </div>
       </div>
 

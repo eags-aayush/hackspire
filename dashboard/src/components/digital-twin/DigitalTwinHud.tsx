@@ -23,6 +23,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+import { useRealtime } from '@/hooks/useRealtime';
+
 interface DigitalTwinHudProps {
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string) => void;
@@ -44,6 +46,7 @@ export function DigitalTwinHud({
 }: DigitalTwinHudProps) {
   const [isPlayingSimulation, setIsPlayingSimulation] = useState(false);
   const [exportFeedback, setExportFeedback] = useState(false);
+  const { isSerialConnected, stats } = useRealtime();
 
   // Time-travel timeline stops
   const timeSteps = [
@@ -92,6 +95,7 @@ export function DigitalTwinHud({
   };
 
   const registeredNodes = Object.values(MINING_NODE_REGISTRY);
+  const isLive = isSerialConnected || (stats.onlineNodes > 0);
 
   return (
     <div className="rounded-2xl bg-white dark:bg-[#0a1120] border border-[#e5e5e5] dark:border-[#14213d] shadow-xl p-4 lg:p-6 space-y-5">
@@ -104,13 +108,15 @@ export function DigitalTwinHud({
             <span>Digital Twin Fidelity</span>
           </div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-              99.4%
+            <span className={`text-xl font-black font-mono ${isLive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+              {isLive ? '99.4%' : '--'}
             </span>
-            <span className="text-[10px] text-slate-400 font-mono">Calibrated</span>
+            <span className="text-[10px] text-slate-400 font-mono">
+              {isLive ? 'Calibrated' : 'Offline'}
+            </span>
           </div>
           <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-            FEM / Peck's Trough Error &lt; 0.6mm
+            {isLive ? "FEM / Peck's Trough Error < 0.6mm" : 'Awaiting Port Telemetry'}
           </div>
         </div>
 
@@ -122,12 +128,16 @@ export function DigitalTwinHud({
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-xl font-black text-[#14213d] dark:text-white font-mono">
-              {metrics?.avgLatency ? `${Math.round(metrics.avgLatency)}ms` : '182ms'}
+              {metrics?.avgLatency && metrics.avgLatency > 0
+                ? `${Math.round(metrics.avgLatency)}ms`
+                : isSerialConnected
+                ? '< 15ms'
+                : '--'}
             </span>
-            <span className="text-[10px] text-emerald-500 font-mono font-bold">&lt; 500ms</span>
+            {isLive && <span className="text-[10px] text-emerald-500 font-mono font-bold">&lt; 500ms</span>}
           </div>
           <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-            Protobuf Wire Coalesced (250ms)
+            {isSerialConnected ? 'Direct Web Serial (115200)' : metrics?.avgLatency ? 'Protobuf Wire Coalesced' : 'No Active Stream'}
           </div>
         </div>
 
@@ -139,12 +149,14 @@ export function DigitalTwinHud({
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-xl font-black text-[#14213d] dark:text-white font-mono">
-              {registeredNodes.length} Nodes
+              {isSerialConnected ? '1 Live Port' : stats.onlineNodes > 0 ? `${stats.onlineNodes} Nodes` : '0 Nodes'}
             </span>
-            <span className="text-[10px] text-emerald-500 font-mono font-bold">100% Online</span>
+            <span className="text-[10px] text-emerald-500 font-mono font-bold">
+              {isSerialConnected ? '100% (Port)' : stats.onlineNodes > 0 ? `${stats.onlineNodes}/${stats.totalNodes}` : 'Offline'}
+            </span>
           </div>
           <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-            Mesh Dual Protocol (LoRa / ESP-NOW)
+            {isSerialConnected ? 'Connected via USB Serial' : 'Mesh Dual Protocol (LoRa / ESP-NOW)'}
           </div>
         </div>
 

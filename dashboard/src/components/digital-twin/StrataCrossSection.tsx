@@ -18,6 +18,7 @@ import {
   Crosshair,
   Gauge,
 } from 'lucide-react';
+import { useRealtime } from '@/hooks/useRealtime';
 
 interface StrataCrossSectionProps {
   selectedNodeId: string | null;
@@ -37,6 +38,8 @@ export function StrataCrossSection({
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
   const [showGeotechDetails, setShowGeotechDetails] = useState(true);
 
+  const { isSerialConnected, livePortData } = useRealtime();
+
   // Active or fallback node
   const activeNodeId = selectedNodeId || 'NODE_03';
   const nodeInfo = MINING_NODE_REGISTRY[activeNodeId] || MINING_NODE_REGISTRY.NODE_03 || {
@@ -53,29 +56,55 @@ export function StrataCrossSection({
 
   const zoneId = nodeInfo?.zoneId || 'ZONE_01_LONGWALL_FACE';
 
-  // Live telemetry for active node
+  // Live telemetry for active node or USB serial port
   const nodeReads = readings[zoneId]?.[activeNodeId] || {};
   const statusObj = nodeStatuses[zoneId]?.[activeNodeId];
-  const isOnline = statusObj?.status === 'online';
+  const isOnline = isSerialConnected || statusObj?.status === 'online';
 
-  // Base live metrics
-  let rawTilt = nodeReads.tilt?.value || 1.2;
-  let rawDisp = nodeReads.displacement?.value || 12.5;
-  const rawVibe = nodeReads.vibration?.value || 3.2;
-  const rawWater = nodeReads.water?.value || 210;
+  const hasLiveReading = Boolean(
+    nodeReads.tilt?.value != null ||
+    nodeReads.displacement?.value != null ||
+    (isSerialConnected && livePortData)
+  );
+
+  // Base live metrics - extracted dynamically without hardcoded mocks
+  let rawTilt = nodeReads.tilt?.value != null
+    ? nodeReads.tilt.value
+    : livePortData?.ax != null
+    ? +(Math.sqrt(livePortData.ax * livePortData.ax + (livePortData.ay || 0) * (livePortData.ay || 0)) * 5.73).toFixed(2)
+    : 0;
+
+  let rawDisp = nodeReads.displacement?.value != null
+    ? nodeReads.displacement.value
+    : livePortData?.water != null
+    ? +(livePortData.water / 10).toFixed(1)
+    : 0;
+
+  const rawVibe = nodeReads.vibration?.value != null
+    ? nodeReads.vibration.value
+    : livePortData?.ml != null
+    ? +(livePortData.ml * 2.5).toFixed(1)
+    : 0;
+
+  const rawWater = nodeReads.water?.value != null
+    ? nodeReads.water.value
+    : livePortData?.water != null
+    ? livePortData.water
+    : 0;
 
   // In predictive time-travel simulation (+2h or +6h), apply subsidence growth factor
-  if (timeTravelOffsetHours === 2) {
-    rawDisp = rawDisp * 1.6 + 8;
-    rawTilt = Math.min(4.8, rawTilt * 1.5 + 0.5);
-  } else if (timeTravelOffsetHours === 6) {
-    rawDisp = rawDisp * 2.8 + 22;
-    rawTilt = Math.min(6.5, rawTilt * 2.2 + 1.2);
+  if (hasLiveReading) {
+    if (timeTravelOffsetHours === 2) {
+      rawDisp = rawDisp * 1.6 + 8;
+      rawTilt = Math.min(4.8, rawTilt * 1.5 + 0.5);
+    } else if (timeTravelOffsetHours === 6) {
+      rawDisp = rawDisp * 2.8 + 22;
+      rawTilt = Math.min(6.5, rawTilt * 2.2 + 1.2);
+    }
   }
 
   // Calculate dynamic Peck's subsidence settlement curve
-  // Smax is proportional to surface displacement telemetry
-  const sMaxMm = Math.max(15, rawDisp * 1.8);
+  const sMaxMm = hasLiveReading ? Math.max(15, rawDisp * 1.8) : 0;
   const inflectionPointM = 42; // Distance to inflection point based on Barakar sandstone depth
   const profilePoints = useMemo(() => {
     return calculatePecksSubsidenceProfile(sMaxMm, inflectionPointM, 240, 60);
@@ -499,10 +528,11 @@ export function StrataCrossSection({
               <span className="font-semibold">Max Settlement (Smax)</span>
             </div>
             <div className="text-xl font-black text-[#14213d] dark:text-white font-mono mt-1.5">
-              -{sMaxMm.toFixed(1)} <span className="text-xs text-slate-500 font-sans font-normal">mm</span>
+              {hasLiveReading ? `-${sMaxMm.toFixed(1)}` : '--'}{' '}
+              <span className="text-xs text-slate-500 font-sans font-normal">mm</span>
             </div>
             <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-              Trough Axis (x = 0m)
+              {hasLiveReading ? 'Trough Axis (x = 0m)' : 'Awaiting Telemetry'}
             </div>
           </div>
 
@@ -512,7 +542,8 @@ export function StrataCrossSection({
               <span className="font-semibold">Biaxial Probe Tilt</span>
             </div>
             <div className="text-xl font-black text-[#14213d] dark:text-white font-mono mt-1.5">
-              {rawTilt.toFixed(2)}° <span className="text-xs text-slate-500 font-sans font-normal">dip</span>
+              {hasLiveReading ? `${rawTilt.toFixed(2)}°` : '--'}{' '}
+              <span className="text-xs text-slate-500 font-sans font-normal">dip</span>
             </div>
             <div className="text-[11px] text-slate-400 font-mono mt-0.5">
               Threshold: {nodeInfo?.criticalThresholdTilt || 3.5}° max
@@ -525,7 +556,8 @@ export function StrataCrossSection({
               <span className="font-semibold">Inflection Radius (i)</span>
             </div>
             <div className="text-xl font-black text-[#14213d] dark:text-white font-mono mt-1.5">
-              {inflectionPointM} <span className="text-xs text-slate-500 font-sans font-normal">meters</span>
+              {hasLiveReading ? `${inflectionPointM}` : '--'}{' '}
+              <span className="text-xs text-slate-500 font-sans font-normal">meters</span>
             </div>
             <div className="text-[11px] text-slate-400 font-mono mt-0.5">
               Angle of Draw: 35° (Barakar)
@@ -538,10 +570,11 @@ export function StrataCrossSection({
               <span className="font-semibold">Pore Water Table</span>
             </div>
             <div className="text-xl font-black text-[#14213d] dark:text-white font-mono mt-1.5">
-              -{Math.round(rawWater / 10)} <span className="text-xs text-slate-500 font-sans font-normal">m depth</span>
+              {hasLiveReading ? `-${Math.round(rawWater / 10)}` : '--'}{' '}
+              <span className="text-xs text-slate-500 font-sans font-normal">m depth</span>
             </div>
             <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-              Hydrostatic: {(rawWater * 0.098).toFixed(1)} kPa
+              {hasLiveReading ? `Hydrostatic: ${(rawWater * 0.098).toFixed(1)} kPa` : 'Awaiting Water Probe'}
             </div>
           </div>
         </div>

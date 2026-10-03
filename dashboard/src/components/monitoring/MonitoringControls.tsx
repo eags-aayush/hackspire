@@ -13,6 +13,7 @@ import {
   BrainCircuit,
   ShieldAlert,
   Cpu,
+  FileText,
 } from 'lucide-react';
 
 interface MonitoringControlsProps {
@@ -38,7 +39,7 @@ export function MonitoringControls({
   onlyOpPp,
   onToggleOnlyOpPp,
 }: MonitoringControlsProps) {
-  const { clearCache, isSimulationActive, toggleSimulation } = useRealtime();
+  const { clearCache, isSimulationActive, toggleSimulation, downloadLatestIncidentPdf } = useRealtime();
   const [purgedRecently, setPurgedRecently] = useState(false);
 
   const handlePurge = () => {
@@ -195,6 +196,15 @@ export function MonitoringControls({
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>{isSimulationActive ? 'Stop Demo' : 'Browser Demo'}</span>
+          </button>
+
+          <button
+            onClick={downloadLatestIncidentPdf}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-[#fca311]/50 bg-amber-500/10 hover:bg-amber-500/20 text-[#14213d] dark:text-[#fca311] transition-all hover:scale-105 active:scale-95 shadow-sm cursor-pointer"
+            title="Download official DGMS system report PDF showing current detected telemetry values"
+          >
+            <FileText className="w-3.5 h-3.5 text-[#fca311]" />
+            <span>Report PDF</span>
           </button>
 
           <button
