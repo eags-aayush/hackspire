@@ -180,14 +180,19 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   // Edge Alert Actuator States (physical LED / buzzer state per node)
   const [edgeActuatorStates, setEdgeActuatorStates] = useState<Record<string, EdgeNodeActuatorState>>({});
 
-  // Voice Alert & Speech Synthesis state
-  const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
+  // Voice Alert & Speech Synthesis state (default true on SSR, sync with localStorage on mount)
+  const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState<boolean>(true);
+
+  useEffect(() => {
+    try {
       const saved = localStorage.getItem('voice_alerts_enabled');
-      return saved !== null ? saved === 'true' : true;
+      if (saved !== null) {
+        setVoiceAlertsEnabled(saved === 'true');
+      }
+    } catch {
+      // Ignore localStorage error
     }
-    return true;
-  });
+  }, []);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastSpokenMessage, setLastSpokenMessage] = useState<string | null>(null);
 

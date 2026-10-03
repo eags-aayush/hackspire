@@ -64,13 +64,19 @@ export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('observability');
 
   // Hardware Filter State (NODE_OP & NODE_PP Only vs All Nodes)
-  const [onlyOpPp, setOnlyOpPp] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
+  const [onlyOpPp, setOnlyOpPp] = useState<boolean>(true);
+
+  // Synchronize persisted filter state after client mount
+  useEffect(() => {
+    try {
       const saved = localStorage.getItem('monitoring_filter_op_pp');
-      return saved !== null ? saved === 'true' : true;
+      if (saved !== null) {
+        setOnlyOpPp(saved === 'true');
+      }
+    } catch {
+      // Ignore localStorage error
     }
-    return true;
-  });
+  }, []);
 
   const toggleOnlyOpPp = useCallback(() => {
     setOnlyOpPp(prev => {

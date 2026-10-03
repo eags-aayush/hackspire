@@ -37,13 +37,19 @@ export function useZoneFilter() {
   const [statusFilter, setStatusFilter] = useState<StatusFilterOption>('all');
 
   // Filter for actual hardware nodes (NODE_OP & NODE_PP). Defaults to true as requested.
-  const [onlyOpPp, setOnlyOpPpState] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
+  const [onlyOpPp, setOnlyOpPpState] = useState<boolean>(true);
+
+  // Synchronize persisted filter state after client mount
+  useEffect(() => {
+    try {
       const saved = localStorage.getItem('monitoring_filter_op_pp');
-      if (saved !== null) return saved === 'true';
+      if (saved !== null) {
+        setOnlyOpPpState(saved === 'true');
+      }
+    } catch {
+      // Ignore localStorage error
     }
-    return true;
-  });
+  }, []);
 
   const setOnlyOpPp = (val: boolean | ((prev: boolean) => boolean)) => {
     setOnlyOpPpState(prev => {

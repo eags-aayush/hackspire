@@ -15,20 +15,20 @@ interface SidebarContextValue {
 const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  // Desktop collapsed state: default collapsed (true) for optimal workspace space
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('Hackspire_sidebar_collapsed');
-        if (saved !== null) {
-          return saved === 'true';
-        }
-      } catch {
-        // Ignore localStorage error
+  // Desktop collapsed state: default collapsed (true) on SSR and initial client render to prevent hydration mismatch
+  const [collapsed, setCollapsed] = useState<boolean>(true);
+
+  // Synchronize persisted collapsed state after initial client mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('Hackspire_sidebar_collapsed');
+      if (saved !== null) {
+        setCollapsed(saved === 'true');
       }
+    } catch {
+      // Ignore localStorage error
     }
-    return true;
-  });
+  }, []);
 
   // Mobile / small-screen drawer state
   const [mobileOpen, setMobileOpen] = useState(false);
